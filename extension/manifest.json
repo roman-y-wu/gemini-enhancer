@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Gemini Enhancer",
   "version": "1.7.1",
-  "description": "Ask follow-ups with native-feeling UI, robust slash commands, and reliable autosave on gemini.google.com.",
+  "description": "Ask follow-ups with native-feeling UI and robust slash commands on gemini.google.com.",
   "permissions": [
     "storage"
   ],
@@ -11,9 +11,15 @@
   ],
   "content_scripts": [
     {
-      "matches": ["https://gemini.google.com/*"],
-      "js": ["content.js"],
-      "css": ["styles.css"],
+      "matches": [
+        "https://gemini.google.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
       "run_at": "document_idle"
     }
   ],

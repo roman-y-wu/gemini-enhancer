@@ -47,12 +47,7 @@ class EnhancerState {
 
             // Wide mode state removed
 
-            // Auto-save state
-            autoSave: {
-                timeout: null,
-                lastRestoredUrl: null,
-                lastInputField: null
-            },
+            // Auto-save state removed
 
             // UI state
             ui: {
@@ -454,19 +449,9 @@ browserAPI.storage.onChanged.addListener((changes, namespace) => {
         slashCommands = changes.slashCommands.newValue || {};
         console.log('Slash commands updated:', slashCommands);
     }
-    // Listen for changes to autosaved text (e.g., cleared by popup)
-    if (namespace === 'local' && changes.autosavedContent) {
-        if (!changes.autosavedContent.newValue) {
-            const currentUrl = window.location.href;
-            const inputField = findGeminiInputBox();
-            if (inputField && localStorage.getItem('autosave_last_cleared_url') === currentUrl) {
-                // Potentially clear the input field if the saved data was cleared for this URL
-                // and the user hasn't typed anything new yet.
-                // However, this might be too aggressive. For now, we'll just log.
-                console.log('Autosaved content cleared for this page.');
-                localStorage.removeItem('autosave_last_cleared_url');
-            }
-        }
+    if (namespace === 'sync' && changes.slashCommands) {
+        slashCommands = changes.slashCommands.newValue || {};
+        console.log('Slash commands updated:', slashCommands);
     }
 });
 
@@ -558,261 +543,13 @@ function initializeEventListeners() {
         window.removeEventListener('scroll', onViewportChange, { passive: true });
     });
 
-    // Save autosave buffer when tab becomes hidden / page is leaving
-    const onVisibility = () => {
-        if (document.visibilityState === 'hidden') {
-            saveInputContent();
-        }
-    };
-    const onPageHide = () => {
-        // Flush any pending debounce and persist immediately
-        const pending = enhancerState.get('autoSave.timeout');
-        if (pending) {
-            clearTimeout(pending);
-            enhancerState.set('autoSave.timeout', null);
-        }
-        saveInputContent();
-    };
-    const onBeforeUnload = () => {
-        // Best-effort save on hard unload (browser close / tab close)
-        const pending = enhancerState.get('autoSave.timeout');
-        if (pending) {
-            clearTimeout(pending);
-            enhancerState.set('autoSave.timeout', null);
-        }
-        saveInputContent();
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('pagehide', onPageHide);
-    window.addEventListener('beforeunload', onBeforeUnload);
-    enhancerState.addCleanup(() => document.removeEventListener('visibilitychange', onVisibility));
-    enhancerState.addCleanup(() => window.removeEventListener('pagehide', onPageHide));
-    enhancerState.addCleanup(() => window.removeEventListener('beforeunload', onBeforeUnload));
+    console.log('Event listeners initialized with cleanup');
 
     console.log('Event listeners initialized with cleanup');
 }
 
 // Initialize event listeners unconditionally; handlers will guard excluded paths
 initializeEventListeners();
-
-// --- AUTOSAVE FEATURE ---
-const AUTOSAVE_STORAGE_KEY = 'autosavedContent_gemini';
-const AUTOSAVE_DEBOUNCE_MS = 2000;
-
-function findGeminiInputBox() {
-    // Target only the primary chat input on Gemini (avoid edit/inline textboxes)
-    const selectors = [
-        '#prompt-textarea',
-        'textarea[aria-label*="Prompt" i]',
-        'textarea[aria-label*="Message" i]',
-        'textarea[placeholder*="Message" i]',
-        'textarea[data-testid*="chat-input" i]',
-        'div[role="textbox"][aria-label*="Send a message" i]',
-        'div[role="textbox"][aria-label*="Prompt" i]',
-        '.input-box[contenteditable="true"]'
-        // Intentionally omit broad fallbacks like 'textarea' or 'div[role="textbox"]'
-    ];
-    for (let selector of selectors) {
-        const elem = document.querySelector(selector);
-        if (elem && elem.offsetParent !== null && (elem as HTMLElement).offsetHeight > 0 && (elem as HTMLElement).offsetWidth > 0) {
-            const rect = (elem as HTMLElement).getBoundingClientRect();
-            // Prefer inputs that live in the lower half of the viewport (chat composer area)
-            if (rect.top > window.innerHeight / 2) {
-                return elem;
-            }
-        }
-    }
-    return null;
-}
-
-function attachAutosave(inputField) {
-    if (!inputField) return;
-
-    const currentInputField = enhancerState.get('autoSave.lastInputField');
-    if (currentInputField === inputField) return; // Already attached
-
-    // Remove listeners from previous input field
-    if (currentInputField) {
-        currentInputField.removeEventListener('input', handleAutosaveInput);
-        currentInputField.removeEventListener('keyup', handleAutosaveInput);
-    }
-
-    // Attach to new input field
-    enhancerState.set('autoSave.lastInputField', inputField);
-    inputField.addEventListener('input', handleAutosaveInput);
-    inputField.addEventListener('keyup', handleAutosaveInput);
-    // Save when the field loses focus (e.g., user switches tabs/windows)
-    const onBlur = () => saveInputContent();
-    inputField.addEventListener('blur', onBlur);
-
-    // Add cleanup for these listeners
-    enhancerState.addCleanup(() => {
-        inputField.removeEventListener('input', handleAutosaveInput);
-        inputField.removeEventListener('keyup', handleAutosaveInput);
-        inputField.removeEventListener('blur', onBlur);
-    });
-}
-
-async function saveInputContent() {
-    const inputField = enhancerState.get('autoSave.lastInputField') || findGeminiInputBox();
-    if (!inputField) return;
-
-    const currentUrl = window.location.href;
-    const textToSave = inputField.tagName === 'TEXTAREA' || inputField.tagName === 'INPUT'
-        ? inputField.value
-        : inputField.innerText;
-
-    try {
-        if (textToSave.trim() === '') {
-            const savedData = await browserAPI.storage.local.get(AUTOSAVE_STORAGE_KEY);
-            if (savedData[AUTOSAVE_STORAGE_KEY] && savedData[AUTOSAVE_STORAGE_KEY].url === currentUrl) {
-                await browserAPI.storage.local.remove(AUTOSAVE_STORAGE_KEY);
-            }
-            return;
-        }
-        const dataToStore = { url: currentUrl, text: textToSave, timestamp: Date.now() };
-        await browserAPI.storage.local.set({ [AUTOSAVE_STORAGE_KEY]: dataToStore });
-    } catch (error) {
-        if (error.message.includes('Extension context invalidated')) {
-            console.log('Extension context invalidated - skipping autosave');
-            return;
-        }
-        console.error('Error saving input content:', error);
-    }
-}
-
-function handleAutosaveInput() {
-    const currentTimeout = enhancerState.get('autoSave.timeout');
-    if (currentTimeout) {
-        clearTimeout(currentTimeout);
-    }
-
-    const newTimeout = setTimeout(saveInputContent, AUTOSAVE_DEBOUNCE_MS);
-    enhancerState.set('autoSave.timeout', newTimeout);
-    enhancerState.addCleanup(() => clearTimeout(newTimeout));
-}
-
-async function restoreInputContent(inputField) {
-    if (!inputField) return;
-
-    const currentUrl = window.location.href;
-    const lastRestoredUrl = enhancerState.get('autoSave.lastRestoredUrl');
-    if (lastRestoredUrl === currentUrl) return;
-
-    try {
-        const result = await browserAPI.storage.local.get(AUTOSAVE_STORAGE_KEY);
-        const savedData = result[AUTOSAVE_STORAGE_KEY];
-        if (savedData && savedData.url === currentUrl && savedData.text) {
-            // Only restore if the field is effectively empty to avoid overwriting
-            const currentText = (inputField.tagName === 'TEXTAREA' || inputField.tagName === 'INPUT')
-                ? (inputField.value || '')
-                : (inputField.innerText || '');
-
-            if (currentText.trim().length === 0) {
-                if (inputField.tagName === 'TEXTAREA' || inputField.tagName === 'INPUT') {
-                    inputField.value = savedData.text;
-                } else {
-                    inputField.innerText = savedData.text;
-                }
-                inputField.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-                inputField.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
-                enhancerState.set('autoSave.lastRestoredUrl', currentUrl);
-            }
-        }
-    } catch (error) {
-        if (error.message.includes('Extension context invalidated')) {
-            console.log('Extension context invalidated - skipping autosave restore');
-            return;
-        }
-        console.error('Error restoring input content:', error);
-    }
-}
-
-function observeInputBox() {
-    // Disconnect existing observer
-    const currentObserver = enhancerState.get('observers.mutation');
-    if (currentObserver) {
-        currentObserver.disconnect();
-    }
-
-    // Create new observer
-    const observer = new MutationObserver(() => {
-        const inputField = findGeminiInputBox();
-        if (inputField) {
-            attachAutosave(inputField);
-            restoreInputContent(inputField);
-        }
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
-    enhancerState.set('observers.mutation', observer);
-
-    // Add cleanup
-    enhancerState.addCleanup(() => {
-        observer.disconnect();
-    });
-
-    // Initial check
-    const inputField = findGeminiInputBox();
-    if (inputField) {
-        attachAutosave(inputField);
-        restoreInputContent(inputField);
-    }
-}
-
-let lastKnownUrl = location.href;
-
-function onUrlChange() {
-    if (lastKnownUrl !== location.href) {
-        lastKnownUrl = location.href;
-        enhancerState.set('autoSave.lastRestoredUrl', null);
-
-        // Check if we're on an excluded path and disable features accordingly
-        if (isExcludedPath()) {
-            console.log('Gemini Enhancer disabled on excluded path:', window.location.pathname);
-            // Clean up any active features
-            const followUpButton = enhancerState.get('followUp.button');
-            if (followUpButton) {
-                followUpButton.remove();
-                enhancerState.set('followUp.button', null);
-            }
-            hideCommandAutocomplete();
-            return;
-        }
-
-        observeInputBox();
-    } else if (!isExcludedPath()) {
-        // Even if URL didn't change, try to restore if input is present and not restored
-        const inputField = findGeminiInputBox();
-        if (inputField) restoreInputContent(inputField);
-    }
-}
-
-function startUrlPolling() {
-    // Clear existing interval - reuse the removed wide mode interval variable for cleanup
-    const currentInterval = enhancerState.get('observers.urlPolling');
-    if (currentInterval) {
-        clearInterval(currentInterval);
-    }
-
-    const urlInterval = setInterval(onUrlChange, 500);
-    enhancerState.set('observers.urlPolling', urlInterval);
-
-    // Add cleanup
-    enhancerState.addCleanup(() => {
-        clearInterval(urlInterval);
-    });
-}
-
-function hookHistoryEvents() {
-    const pushState = history.pushState;
-    history.pushState = function () {
-        pushState.apply(this, arguments);
-        setTimeout(onUrlChange, 100);
-    };
-    window.addEventListener('popstate', onUrlChange);
-    window.addEventListener('hashchange', onUrlChange);
-}
 
 function isExcludedPath() {
     // Exclude exactly these paths only:
@@ -822,21 +559,6 @@ function isExcludedPath() {
     return pathname === '/scheduled' || pathname === '/apps';
 }
 
-if (!isExcludedPath()) {
-    if (document.readyState === 'complete') {
-        observeInputBox();
-        hookHistoryEvents();
-        startUrlPolling();
-    } else {
-        window.addEventListener('load', () => {
-            observeInputBox();
-            hookHistoryEvents();
-            startUrlPolling();
-        });
-    }
-} else {
-    console.log('Gemini Enhancer disabled on excluded path:', window.location.pathname);
-}
 // --- END AUTOSAVE FEATURE ---
 
 function handleMouseDown(event) {
@@ -1737,11 +1459,37 @@ function isSendActionTarget(target: Element | null): boolean {
     return (target.matches?.(selectors) || !!(target as HTMLElement).closest?.(selectors)) ?? false;
 }
 
+function findGeminiInputBox() {
+    // Target only the primary chat input on Gemini (avoid edit/inline textboxes)
+    const selectors = [
+        '#prompt-textarea',
+        'textarea[aria-label*="Prompt" i]',
+        'textarea[aria-label*="Message" i]',
+        'textarea[placeholder*="Message" i]',
+        'textarea[data-testid*="chat-input" i]',
+        'div[role="textbox"][aria-label*="Send a message" i]',
+        'div[role="textbox"][aria-label*="Prompt" i]',
+        '.input-box[contenteditable="true"]'
+        // Intentionally omit broad fallbacks like 'textarea' or 'div[role="textbox"]'
+    ];
+    for (let selector of selectors) {
+        const elem = document.querySelector(selector);
+        if (elem && elem.offsetParent !== null && (elem as HTMLElement).offsetHeight > 0 && (elem as HTMLElement).offsetWidth > 0) {
+            const rect = (elem as HTMLElement).getBoundingClientRect();
+            // Prefer inputs that live in the lower half of the viewport (chat composer area)
+            if (rect.top > window.innerHeight / 2) {
+                return elem;
+            }
+        }
+    }
+    return null;
+}
+
 function scheduleClearInputAfterSend() {
     // Small delay to allow the host page to read the value and dispatch the message
     setTimeout(() => {
         try {
-            const inputField = enhancerState.get('autoSave.lastInputField') || findGeminiInputBox();
+            const inputField = findGeminiInputBox();
             if (!inputField) return;
 
             // Determine current text
@@ -1759,15 +1507,6 @@ function scheduleClearInputAfterSend() {
             inputField.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
             inputField.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
 
-            // Cancel any pending autosave debounce and clear stored autosave
-            const pending = enhancerState.get('autoSave.timeout');
-            if (pending) {
-                clearTimeout(pending as any);
-                enhancerState.set('autoSave.timeout', null);
-            }
-            try {
-                browserAPI.storage.local.remove(AUTOSAVE_STORAGE_KEY);
-            } catch (_) { /* noop */ }
         } catch (_) { /* noop */ }
     }, 120);
 }
