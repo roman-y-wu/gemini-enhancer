@@ -421,13 +421,15 @@ function applyWideMode(enabled: boolean, width: number) {
         document.head.appendChild(styleEl);
     }
 
-    // Target the main conversation container
+    // Target the main conversation container and user messages
     // We use !important to override Gemini's inline styles or specific classes
     styleEl.textContent = `
         .conversation-container, 
         .input-area-container,
         main > div > div,
-        [role="main"] > div > div {
+        [role="main"] > div > div,
+        user-query,
+        .user-query-bubble-with-background {
             max-width: ${width}px !important;
         }
         
