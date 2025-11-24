@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8">
     <style>
@@ -15,8 +16,8 @@
             --border-subtle: #e8eaed;
             --border-default: #dadce0;
             --divider-color: #e8eaed;
-            --hover-overlay: rgba(60,64,67,0.08);
-            --focus-ring: rgba(26,115,232,0.24);
+            --hover-overlay: rgba(60, 64, 67, 0.08);
+            --focus-ring: rgba(26, 115, 232, 0.24);
             --button-primary-bg: #1a73e8;
             --button-primary-hover: #1557b0;
             --button-danger-bg: #d93025;
@@ -41,8 +42,8 @@
                 --border-subtle: #3c4043;
                 --border-default: #5f6368;
                 --divider-color: #3c4043;
-                --hover-overlay: rgba(232,234,237,0.08);
-                --focus-ring: rgba(138,180,248,0.24);
+                --hover-overlay: rgba(232, 234, 237, 0.08);
+                --focus-ring: rgba(138, 180, 248, 0.24);
                 --button-primary-bg: #8ab4f8;
                 --button-primary-hover: #aecbfa;
                 --button-danger-bg: #f28b82;
@@ -71,13 +72,13 @@
             color: var(--text-primary);
             overflow-x: hidden;
         }
-        
+
         .header {
             padding: 20px 24px 16px;
             border-bottom: 1px solid var(--divider-color);
             background: var(--surface-1);
         }
-        
+
         .header h1 {
             font-size: 16px;
             font-weight: 500;
@@ -88,28 +89,28 @@
             align-items: center;
             gap: 8px;
         }
-        
+
         .header h1::before {
             content: '⚡';
             font-size: 20px;
         }
-        
+
         .header p {
             font-size: 13px;
             line-height: 16px;
             color: var(--text-secondary);
             margin: 0;
         }
-        
+
         .section {
             background: var(--surface-1);
             border-bottom: 1px solid var(--divider-color);
         }
-        
+
         .section:last-child {
             border-bottom: none;
         }
-        
+
         .section-header {
             padding: 16px 24px 8px;
             font-size: 14px;
@@ -118,7 +119,7 @@
             color: var(--text-primary);
             margin: 0;
         }
-        
+
         .command-item {
             display: flex;
             align-items: center;
@@ -128,15 +129,15 @@
             transition: background-color 0.1s ease;
             cursor: default;
         }
-        
+
         .command-item:last-child {
             border-bottom: none;
         }
-        
+
         .command-item:hover {
             background: var(--hover-overlay);
         }
-        
+
         .command-trigger {
             font-family: 'Roboto Mono', 'Consolas', 'Monaco', monospace;
             background: var(--surface-2);
@@ -150,7 +151,7 @@
             text-align: center;
             flex-shrink: 0;
         }
-        
+
         .command-description {
             flex: 1;
             margin: 0 12px;
@@ -163,7 +164,7 @@
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
         }
-        
+
         .delete-btn {
             background: transparent;
             color: var(--text-secondary);
@@ -177,26 +178,26 @@
             transition: all 0.1s ease;
             flex-shrink: 0;
         }
-        
+
         .delete-btn:hover {
             background: var(--button-danger-bg);
             color: white;
             border-color: var(--button-danger-bg);
         }
-        
+
         .delete-btn:active {
             background: var(--button-danger-hover);
             border-color: var(--button-danger-hover);
         }
-        
+
         .add-command {
             padding: 16px 24px 24px;
         }
-        
+
         .form-group {
             margin-bottom: 16px;
         }
-        
+
         .form-group label {
             display: block;
             margin-bottom: 4px;
@@ -205,8 +206,9 @@
             line-height: 16px;
             color: var(--text-primary);
         }
-        
-        .form-group input, .form-group textarea {
+
+        .form-group input,
+        .form-group textarea {
             width: 100%;
             padding: 8px 12px;
             border: 1px solid var(--border-default);
@@ -219,19 +221,20 @@
             transition: border-color 0.1s ease, box-shadow 0.1s ease;
             box-sizing: border-box;
         }
-        
-        .form-group input:focus, .form-group textarea:focus {
+
+        .form-group input:focus,
+        .form-group textarea:focus {
             outline: none;
             border-color: var(--button-primary-bg);
             box-shadow: 0 0 0 3px var(--focus-ring);
         }
-        
+
         .form-group textarea {
             min-height: 72px;
             resize: vertical;
             font-family: inherit;
         }
-        
+
         .add-btn {
             background: var(--button-primary-bg);
             color: white;
@@ -245,17 +248,17 @@
             transition: background-color 0.1s ease;
             min-height: 36px;
         }
-        
+
         .add-btn:hover {
             background: var(--button-primary-hover);
         }
-        
+
         .add-btn:disabled {
             background: var(--text-tertiary);
             cursor: not-allowed;
             opacity: 0.6;
         }
-        
+
         .empty-state {
             text-align: center;
             color: var(--text-secondary);
@@ -266,7 +269,7 @@
             border-radius: 4px;
             margin: 0 24px 16px;
         }
-        
+
         .examples {
             font-size: 12px;
             line-height: 16px;
@@ -277,12 +280,12 @@
             border-radius: 4px;
             border: 1px solid var(--border-subtle);
         }
-        
+
         .examples strong {
             color: var(--text-primary);
             font-weight: 500;
         }
-        
+
         .examples code {
             background: var(--surface-3);
             padding: 2px 4px;
@@ -293,33 +296,131 @@
         }
 
 
-        
+
         /* Chrome-style scrollbar */
         ::-webkit-scrollbar {
             width: 12px;
         }
-        
+
         ::-webkit-scrollbar-track {
             background: transparent;
         }
-        
+
         ::-webkit-scrollbar-thumb {
             background: var(--border-default);
             border-radius: 6px;
             border: 3px solid var(--bg-primary);
         }
-        
+
         ::-webkit-scrollbar-thumb:hover {
             background: var(--text-secondary);
         }
+
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 36px;
+            height: 20px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--border-default);
+            transition: .4s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--button-primary-bg);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(16px);
+        }
+
+        /* Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: var(--button-primary-bg);
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: var(--border-default);
+            border-radius: 2px;
+        }
+
+        input[type=range]:focus {
+            outline: none;
+        }
     </style>
 </head>
+
 <body>
     <div class="header">
         <h1>Gemini Enhancer</h1>
         <p>Slash commands and interface enhancements</p>
     </div>
-    
+
+    <div class="section">
+        <h2 class="section-header">Interface Settings</h2>
+        <div style="padding: 12px 24px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <label for="wideModeToggle" style="font-weight: 500; color: var(--text-primary);">Wide Mode</label>
+                <label class="switch">
+                    <input type="checkbox" id="wideModeToggle">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div id="widthControl" style="display: none;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <label for="widthSlider" style="font-size: 12px; color: var(--text-secondary);">Chat Width</label>
+                    <span id="widthValue" style="font-size: 12px; color: var(--text-secondary);">1200px</span>
+                </div>
+                <input type="range" id="widthSlider" min="800" max="3000" step="50" style="width: 100%;">
+            </div>
+        </div>
+    </div>
+
     <div class="section">
         <h2 class="section-header">Slash Commands</h2>
         <div id="toolbar" style="display:flex; gap:8px; align-items:center; padding: 0 24px 12px;">
@@ -331,7 +432,7 @@
             <div class="empty-state">No commands yet. Add one below!</div>
         </div>
     </div>
-    
+
     <div class="section">
         <h2 class="section-header">Add New Command</h2>
         <div class="add-command">
@@ -344,7 +445,7 @@
                 <textarea id="commandPrompt" placeholder="Translate the following text to English: {text}"></textarea>
             </div>
             <button id="addCommand" class="add-btn">Add Command</button>
-            
+
             <div class="examples">
                 <strong>Examples:</strong><br>
                 • <code>/translate</code> → "Translate to English: {text}"<br>
@@ -355,7 +456,8 @@
             </div>
         </div>
     </div>
-    
+
     <script src="popup.js"></script>
 </body>
+
 </html>

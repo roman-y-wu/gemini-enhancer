@@ -9,6 +9,7 @@ if (window.__GEMINI_ENHANCER_ACTIVE__) {
 window.__GEMINI_ENHANCER_ACTIVE__ = true;
 
 // Safari compatibility: Use browser API if available, fallback to chrome
+// @ts-ignore
 const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
 // Legacy variables for backward compatibility - Initialize FIRST
@@ -35,7 +36,7 @@ class EnhancerState {
                 isHoveringButton: false,
                 selectionTimeout: null
             },
-            
+
             // Slash commands state
             slashCommands: {
                 commands: {},
@@ -43,22 +44,22 @@ class EnhancerState {
                 lastInputBox: null,
                 isActive: false
             },
-            
+
             // Wide mode state removed
-            
+
             // Auto-save state
             autoSave: {
                 timeout: null,
                 lastRestoredUrl: null,
                 lastInputField: null
             },
-            
+
             // UI state
             ui: {
                 actionBar: null,
                 activeFeature: null
             },
-            
+
             // Observers and listeners
             observers: {
                 mutation: null,
@@ -66,42 +67,42 @@ class EnhancerState {
                 resize: null
             }
         };
-        
+
         // Initialize cleanup functions as a separate property, not in state
         this.cleanup = new Set();
         this.eventBus = new EventTarget();
         this.initialized = false;
     }
-    
+
     get(path) {
         return path.split('.').reduce((obj, key) => obj?.[key], this.state);
     }
-    
+
     set(path, value) {
         const keys = path.split('.');
         const lastKey = keys.pop();
         const target = keys.reduce((obj, key) => obj[key] = obj[key] || {}, this.state);
         const oldValue = target[lastKey];
         target[lastKey] = value;
-        
+
         // Emit change event
         this.eventBus.dispatchEvent(new CustomEvent('stateChange', {
             detail: { path, value, oldValue }
         }));
     }
-    
+
     on(event, callback) {
         this.eventBus.addEventListener(event, callback);
     }
-    
+
     emit(event, data) {
         this.eventBus.dispatchEvent(new CustomEvent(event, { detail: data }));
     }
-    
+
     addCleanup(cleanupFn) {
         this.cleanup.add(cleanupFn);
     }
-    
+
     destroy() {
         // Execute all cleanup functions
         if (this.cleanup) {
@@ -114,12 +115,12 @@ class EnhancerState {
             });
             this.cleanup.clear();
         }
-        
+
         // Clear all state
         Object.keys(this.state).forEach(key => {
             this.state[key] = {};
         });
-        
+
         this.initialized = false;
         console.log('Gemini Enhancer state cleaned up');
     }
@@ -172,7 +173,7 @@ class EventCoordinator {
             'auto-save': 1
         };
     }
-    
+
     // Register a feature as active
     activateFeature(featureName, data = {}) {
         this.activeFeatures.add(featureName);
@@ -180,7 +181,7 @@ class EventCoordinator {
         enhancerState.emit('featureActivated', { feature: featureName, data });
         console.log(`Feature activated: ${featureName}`);
     }
-    
+
     // Deactivate a feature
     deactivateFeature(featureName) {
         this.activeFeatures.delete(featureName);
@@ -190,36 +191,36 @@ class EventCoordinator {
         enhancerState.emit('featureDeactivated', { feature: featureName });
         console.log(`Feature deactivated: ${featureName}`);
     }
-    
+
     // Check if a feature can be activated (priority-based)
     canActivateFeature(featureName) {
         const currentFeature = enhancerState.get('ui.activeFeature');
         if (!currentFeature) return true;
-        
+
         const currentPriority = this.featurePriority[currentFeature] || 0;
         const newPriority = this.featurePriority[featureName] || 0;
-        
+
         return newPriority >= currentPriority;
     }
-    
+
     // Coordinate UI element positioning to avoid conflicts
     requestUISpace(featureName, element, preferredPosition) {
         const rect = element.getBoundingClientRect();
         const conflicts = this.checkUIConflicts(rect);
-        
+
         if (conflicts.length > 0) {
             // Adjust position to avoid conflicts
             const adjustedPosition = this.resolveUIConflict(rect, conflicts, preferredPosition);
             return adjustedPosition;
         }
-        
+
         return preferredPosition;
     }
-    
+
     checkUIConflicts(rect) {
         const conflicts = [];
         const threshold = 20; // Minimum distance between UI elements
-        
+
         // Check against follow-up button
         const followUpButton = enhancerState.get('followUp.button');
         if (followUpButton) {
@@ -228,7 +229,7 @@ class EventCoordinator {
                 conflicts.push({ type: 'follow-up', rect: btnRect });
             }
         }
-        
+
         // Check against slash command autocomplete
         const autocomplete = enhancerState.get('slashCommands.autocomplete');
         if (autocomplete && autocomplete.style.display !== 'none') {
@@ -237,57 +238,57 @@ class EventCoordinator {
                 conflicts.push({ type: 'slash-commands', rect: acRect });
             }
         }
-        
+
         return conflicts;
     }
-    
+
     rectsOverlap(rect1, rect2, threshold = 0) {
-        return !(rect1.right + threshold < rect2.left || 
-                rect2.right + threshold < rect1.left || 
-                rect1.bottom + threshold < rect2.top || 
-                rect2.bottom + threshold < rect1.top);
+        return !(rect1.right + threshold < rect2.left ||
+            rect2.right + threshold < rect1.left ||
+            rect1.bottom + threshold < rect2.top ||
+            rect2.bottom + threshold < rect1.top);
     }
-    
+
     resolveUIConflict(rect, conflicts, preferredPosition) {
         // Simple conflict resolution: move down or to the side
         let { top, left } = preferredPosition;
-        
+
         conflicts.forEach(conflict => {
             const conflictRect = conflict.rect;
-            
+
             // If overlapping vertically, move below
             if (top < conflictRect.bottom + 20) {
                 top = conflictRect.bottom + 20;
             }
-            
+
             // If overlapping horizontally, move right
             if (left < conflictRect.right + 20) {
                 left = conflictRect.right + 20;
             }
         });
-        
+
         // Ensure within viewport
         const viewport = {
             width: window.innerWidth,
             height: window.innerHeight
         };
-        
+
         if (left + rect.width > viewport.width) {
             left = viewport.width - rect.width - 16;
         }
-        
+
         if (top + rect.height > viewport.height) {
             top = viewport.height - rect.height - 16;
         }
-        
+
         return { top, left };
     }
-    
+
     // Handle feature conflicts gracefully
     handleFeatureConflict(activeFeature, newFeature) {
         const activePriority = this.featurePriority[activeFeature] || 0;
         const newPriority = this.featurePriority[newFeature] || 0;
-        
+
         if (newPriority > activePriority) {
             // New feature has higher priority, deactivate current
             this.deactivateFeature(activeFeature);
@@ -296,7 +297,7 @@ class EventCoordinator {
             // Same priority, allow coexistence with coordination
             return true;
         }
-        
+
         // New feature has lower priority, reject
         return false;
     }
@@ -328,28 +329,28 @@ function getSelectionBoundingRect(range) {
 // Improved and more reliable AI response detection
 function isSelectionFromAIResponse(selection) {
     if (!selection || selection.rangeCount === 0) return false;
-    
+
     const selectedText = selection.toString().trim();
     console.log('🔍 Checking selection:', selectedText.substring(0, 50) + (selectedText.length > 50 ? '...' : ''));
-    
+
     // Length validation (CJK-friendly): allow 1+ CJK chars or 2+ others
     const hasCJK = /[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(selectedText);
     if ((hasCJK ? selectedText.length < 1 : selectedText.length < 2) || selectedText.length > 2000) {
         console.log(`❌ Selection length invalid for rules, len=${selectedText.length}, hasCJK=${hasCJK}`);
         return false;
     }
-    
+
     const range = selection.getRangeAt(0);
     const container = range.commonAncestorContainer;
     let element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
-    
+
     // Check if selection is within input/editable areas (absolute block)
     while (element && element !== document.body) {
         const tagName = element.tagName?.toLowerCase();
         const isEditable = element.contentEditable === 'true' || element.contentEditable === '';
         const role = element.getAttribute('role');
         const ariaLabel = element.getAttribute('aria-label');
-        
+
         if (
             tagName === 'textarea' ||
             tagName === 'input' ||
@@ -362,10 +363,10 @@ function isSelectionFromAIResponse(selection) {
             console.log('❌ Selection in input area:', { tagName, isEditable, role, ariaLabel });
             return false;
         }
-        
+
         element = element.parentElement;
     }
-    
+
     // Require a visible selection rectangle; do not reject due to incidental
     // overlap with the bottom input bar (common with long list items).
     const selectionRect = getSelectionBoundingRect(range);
@@ -373,18 +374,18 @@ function isSelectionFromAIResponse(selection) {
         console.log('❌ Selection has no visible dimensions');
         return false;
     }
-    
+
     // Unicode-friendly content validation
     const hasAlphaNum = /[\p{L}\p{N}]/u.test(selectedText);
     const onlyPunctOrSymbols = /^[\p{P}\p{S}\s]+$/u.test(selectedText);
     const notSingleCharRepeat = !/^(.)\1*$/.test(selectedText.trim());
     const isValidText = hasAlphaNum && !onlyPunctOrSymbols && notSingleCharRepeat;
-    
+
     if (isValidText) {
         console.log('✅ Selection contains valid text content');
         return true;
     }
-    
+
     console.log('❌ Selection does not contain valid text');
     return false;
 }
@@ -398,8 +399,51 @@ loadSlashCommands();
 
 // Listen for messages from popup
 browserAPI.runtime.onMessage.addListener((message) => {
-    // Wide mode message handlers removed
+    if (message.type === 'UPDATE_WIDE_MODE') {
+        applyWideMode(message.enabled, message.width);
+    }
     console.log('Message received:', message);
+});
+
+// Wide Mode Implementation
+function applyWideMode(enabled: boolean, width: number) {
+    const styleId = 'gemini-enhancer-wide-mode';
+    let styleEl = document.getElementById(styleId);
+
+    if (!enabled) {
+        if (styleEl) styleEl.remove();
+        return;
+    }
+
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = styleId;
+        document.head.appendChild(styleEl);
+    }
+
+    // Target the main conversation container
+    // We use !important to override Gemini's inline styles or specific classes
+    styleEl.textContent = `
+        .conversation-container, 
+        .input-area-container,
+        main > div > div,
+        [role="main"] > div > div {
+            max-width: ${width}px !important;
+        }
+        
+        /* Ensure the input area also expands */
+        .input-area-container {
+            max-width: ${width}px !important;
+            width: 100% !important;
+        }
+    `;
+}
+
+// Initialize Wide Mode
+browserAPI.storage.sync.get(['wideMode', 'wideModeWidth'], (result) => {
+    if (result.wideMode) {
+        applyWideMode(true, result.wideModeWidth || 1200);
+    }
 });
 
 // Listen for storage changes to update commands in real-time
@@ -428,7 +472,7 @@ async function loadSlashCommands() {
     try {
         const result = await browserAPI.storage.sync.get(['slashCommands']);
         slashCommands = result.slashCommands || {};
-        
+
         // Initialize with default commands if none exist
         if (Object.keys(slashCommands).length === 0) {
             const defaultCommands = {
@@ -441,15 +485,15 @@ async function loadSlashCommands() {
                 'review': 'Review this text for grammar, style, and clarity: {text}',
                 'creative': 'Use this as inspiration for a creative story or idea: {text}'
             };
-            
+
             await browserAPI.storage.sync.set({ slashCommands: defaultCommands });
             slashCommands = defaultCommands;
             console.log('Initialized with default slash commands');
         }
-        
+
         // Also update new state management system
         enhancerState.set('slashCommands.commands', slashCommands);
-        
+
         console.log('Loaded slash commands:', slashCommands);
     } catch (error) {
         if (error.message.includes('Extension context invalidated')) {
@@ -467,7 +511,7 @@ function initializeEventListeners() {
         { type: 'mouseup', handler: handleTextSelection, options: { passive: true } },
         { type: 'mousedown', handler: handleMouseDown, options: { passive: true } },
         { type: 'selectionchange', handler: handleSelectionChange, options: { passive: true } },
-        
+
         // Additional selection events for better reliability
         { type: 'touchend', handler: handleTextSelection, options: { passive: true } },  // Mobile support
         { type: 'keyup', handler: handleKeyboardSelection, options: { passive: true } }, // Keyboard selection
@@ -477,7 +521,7 @@ function initializeEventListeners() {
         { type: 'scroll', handler: handleAnyScroll, options: { capture: true, passive: true } },
         { type: 'wheel', handler: handleAnyScroll, options: { capture: true, passive: true } },
         { type: 'touchmove', handler: handleAnyScroll, options: { capture: true, passive: true } },
-        
+
         // Other events
         { type: 'input', handler: handleInputChange, options: { capture: true, passive: true } },
         { type: 'keydown', handler: handleKeyDown, options: { capture: true, passive: false } },
@@ -486,14 +530,14 @@ function initializeEventListeners() {
         { type: 'submit', handler: handleFormSubmit, options: { capture: true, passive: true } },
         { type: 'focusout', handler: handleFocusOut, options: { passive: true } }
     ];
-    
+
     events.forEach(({ type, handler, options }) => {
         document.addEventListener(type, handler, options);
         enhancerState.addCleanup(() => {
             document.removeEventListener(type, handler, options);
         });
     });
-    
+
     // Reposition UI on resize/scroll for native feel
     const onViewportChange = () => {
         try {
@@ -581,16 +625,16 @@ function findGeminiInputBox() {
 
 function attachAutosave(inputField) {
     if (!inputField) return;
-    
+
     const currentInputField = enhancerState.get('autoSave.lastInputField');
     if (currentInputField === inputField) return; // Already attached
-    
+
     // Remove listeners from previous input field
     if (currentInputField) {
         currentInputField.removeEventListener('input', handleAutosaveInput);
         currentInputField.removeEventListener('keyup', handleAutosaveInput);
     }
-    
+
     // Attach to new input field
     enhancerState.set('autoSave.lastInputField', inputField);
     inputField.addEventListener('input', handleAutosaveInput);
@@ -598,7 +642,7 @@ function attachAutosave(inputField) {
     // Save when the field loses focus (e.g., user switches tabs/windows)
     const onBlur = () => saveInputContent();
     inputField.addEventListener('blur', onBlur);
-    
+
     // Add cleanup for these listeners
     enhancerState.addCleanup(() => {
         inputField.removeEventListener('input', handleAutosaveInput);
@@ -610,12 +654,12 @@ function attachAutosave(inputField) {
 async function saveInputContent() {
     const inputField = enhancerState.get('autoSave.lastInputField') || findGeminiInputBox();
     if (!inputField) return;
-    
+
     const currentUrl = window.location.href;
-    const textToSave = inputField.tagName === 'TEXTAREA' || inputField.tagName === 'INPUT' 
-        ? inputField.value 
+    const textToSave = inputField.tagName === 'TEXTAREA' || inputField.tagName === 'INPUT'
+        ? inputField.value
         : inputField.innerText;
-    
+
     try {
         if (textToSave.trim() === '') {
             const savedData = await browserAPI.storage.local.get(AUTOSAVE_STORAGE_KEY);
@@ -640,7 +684,7 @@ function handleAutosaveInput() {
     if (currentTimeout) {
         clearTimeout(currentTimeout);
     }
-    
+
     const newTimeout = setTimeout(saveInputContent, AUTOSAVE_DEBOUNCE_MS);
     enhancerState.set('autoSave.timeout', newTimeout);
     enhancerState.addCleanup(() => clearTimeout(newTimeout));
@@ -648,11 +692,11 @@ function handleAutosaveInput() {
 
 async function restoreInputContent(inputField) {
     if (!inputField) return;
-    
+
     const currentUrl = window.location.href;
     const lastRestoredUrl = enhancerState.get('autoSave.lastRestoredUrl');
     if (lastRestoredUrl === currentUrl) return;
-    
+
     try {
         const result = await browserAPI.storage.local.get(AUTOSAVE_STORAGE_KEY);
         const savedData = result[AUTOSAVE_STORAGE_KEY];
@@ -688,7 +732,7 @@ function observeInputBox() {
     if (currentObserver) {
         currentObserver.disconnect();
     }
-    
+
     // Create new observer
     const observer = new MutationObserver(() => {
         const inputField = findGeminiInputBox();
@@ -697,15 +741,15 @@ function observeInputBox() {
             restoreInputContent(inputField);
         }
     });
-    
+
     observer.observe(document.body, { childList: true, subtree: true });
     enhancerState.set('observers.mutation', observer);
-    
+
     // Add cleanup
     enhancerState.addCleanup(() => {
         observer.disconnect();
     });
-    
+
     // Initial check
     const inputField = findGeminiInputBox();
     if (inputField) {
@@ -720,7 +764,7 @@ function onUrlChange() {
     if (lastKnownUrl !== location.href) {
         lastKnownUrl = location.href;
         enhancerState.set('autoSave.lastRestoredUrl', null);
-        
+
         // Check if we're on an excluded path and disable features accordingly
         if (isExcludedPath()) {
             console.log('Gemini Enhancer disabled on excluded path:', window.location.pathname);
@@ -733,7 +777,7 @@ function onUrlChange() {
             hideCommandAutocomplete();
             return;
         }
-        
+
         observeInputBox();
     } else if (!isExcludedPath()) {
         // Even if URL didn't change, try to restore if input is present and not restored
@@ -748,10 +792,10 @@ function startUrlPolling() {
     if (currentInterval) {
         clearInterval(currentInterval);
     }
-    
+
     const urlInterval = setInterval(onUrlChange, 500);
     enhancerState.set('observers.urlPolling', urlInterval);
-    
+
     // Add cleanup
     enhancerState.addCleanup(() => {
         clearInterval(urlInterval);
@@ -760,7 +804,7 @@ function startUrlPolling() {
 
 function hookHistoryEvents() {
     const pushState = history.pushState;
-    history.pushState = function() {
+    history.pushState = function () {
         pushState.apply(this, arguments);
         setTimeout(onUrlChange, 100);
     };
@@ -795,12 +839,12 @@ if (!isExcludedPath()) {
 
 function handleMouseDown(event) {
     const followUpButton = enhancerState.get('followUp.button');
-    
+
     // If clicking on the follow-up button, don't remove it
     if (followUpButton && followUpButton.contains(event.target)) {
         return;
     }
-    
+
     // If there's a follow-up button and we're clicking elsewhere, only remove it
     // if we're not just adjusting text selection or clicking nearby
     if (followUpButton) {
@@ -809,13 +853,13 @@ function handleMouseDown(event) {
         const buttonRect = followUpButton.getBoundingClientRect();
         const clickX = event.clientX;
         const clickY = event.clientY;
-        
+
         // If clicking far from the button (more than 100px away), remove it
         const distance = Math.sqrt(
             Math.pow(clickX - (buttonRect.left + buttonRect.width / 2), 2) +
             Math.pow(clickY - (buttonRect.top + buttonRect.height / 2), 2)
         );
-        
+
         if (distance > 100) {
             // Clear stability timeout and remove button
             const stabilityTimeout = enhancerState.get('followUp.stabilityTimeout');
@@ -839,26 +883,26 @@ function handleSelectionChange() {
 function updateButtonPosition() {
     const followUpButton = enhancerState.get('followUp.button');
     if (!followUpButton || !followUpButton.parentNode) return;
-    
+
     const selection = window.getSelection();
     if (selection.rangeCount === 0) return;
-    
+
     try {
         const range = selection.getRangeAt(0);
         const rect = getSelectionBoundingRect(range);
-        
+
         // Skip if selection is not visible
         if (!rect || rect.width === 0 || rect.height === 0) return;
-        
-    // Get container dimensions dynamically
-    const containerWidth = followUpButton.offsetWidth || 320;
-    const containerHeight = followUpButton.offsetHeight || 48;
-    const margin = 8;
-        
+
+        // Get container dimensions dynamically
+        const containerWidth = followUpButton.offsetWidth || 320;
+        const containerHeight = followUpButton.offsetHeight || 48;
+        const margin = 8;
+
         // Calculate position above selection
         let buttonTop = rect.top - containerHeight - margin;
         let buttonLeft = rect.left + (rect.width / 2) - (containerWidth / 2);
-        
+
         // Keep within viewport bounds
         const viewport = {
             width: window.innerWidth,
@@ -866,10 +910,10 @@ function updateButtonPosition() {
             scrollX: window.scrollX,
             scrollY: window.scrollY
         };
-        
+
         // Horizontal bounds
         buttonLeft = Math.max(8, Math.min(buttonLeft, viewport.width - containerWidth - 8));
-        
+
         // Vertical bounds - if no room above, place below
         if (buttonTop < 8) {
             buttonTop = rect.bottom + margin;
@@ -878,15 +922,15 @@ function updateButtonPosition() {
                 buttonTop = 8;
             }
         }
-        
+
         // Convert to absolute positioning
         const finalLeft = buttonLeft + viewport.scrollX;
         const finalTop = buttonTop + viewport.scrollY;
-        
+
         // Update position if changed significantly
         const currentLeft = parseFloat(followUpButton.style.left) || 0;
         const currentTop = parseFloat(followUpButton.style.top) || 0;
-        
+
         if (Math.abs(currentLeft - finalLeft) > 1 || Math.abs(currentTop - finalTop) > 1) {
             followUpButton.style.left = `${Math.max(0, finalLeft)}px`;
             followUpButton.style.top = `${Math.max(0, finalTop)}px`;
@@ -918,12 +962,12 @@ function handleTextSelection(event) {
         return;
     }
     console.log('📝 handleTextSelection called with event:', event.type, 'target:', event.target?.tagName);
-    
+
     // Clear any existing timeout
     if (selectionTimeout) {
         clearTimeout(selectionTimeout);
     }
-    
+
     // Use shorter debounce for better responsiveness
     selectionTimeout = setTimeout(() => {
         try {
@@ -932,7 +976,7 @@ function handleTextSelection(event) {
             console.log('📝 Processing selection:', selectedText.length > 0 ? `"${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"` : 'No selection');
 
             const followUpContainer = enhancerState.get('followUp.button');
-            
+
             // If clicking on the follow-up button, don't interfere
             if (followUpContainer && event.target && (followUpContainer.contains(event.target) || followUpContainer === event.target)) {
                 console.log('📝 Click was on follow-up button, ignoring');
@@ -951,30 +995,30 @@ function handleTextSelection(event) {
                     }
                     return;
                 }
-                
+
                 // Update or create button
                 if (followUpContainer && followUpContainer.parentNode) {
                     // Update existing button position and content
                     lastSelectedText = selectedText;
                     enhancerState.set('followUp.selectedText', selectedText);
                     updateButtonPosition();
-                    
+
                     // Clear any removal timeout
                     const stabilityTimeout = enhancerState.get('followUp.stabilityTimeout');
                     if (stabilityTimeout) {
                         clearTimeout(stabilityTimeout);
                         enhancerState.set('followUp.stabilityTimeout', null);
                     }
-                    
+
                     console.log('📝 Updated existing button for new selection');
                     return;
                 }
-                
+
                 // Create new button - ensure we have a valid range first
                 if (selection.rangeCount > 0) {
                     const range = selection.getRangeAt(0);
                     const rect = getSelectionBoundingRect(range);
-                    
+
                     // More lenient visibility check
                     if (rect && rect.width > 0 && rect.height > 0 && rect.top > -50 && rect.left > -50) {
                         lastSelectedText = selectedText;
@@ -1009,14 +1053,14 @@ function handleTextSelection(event) {
 // Handle keyboard-based text selection (Shift+arrows, Ctrl+A, etc.)
 function handleKeyboardSelection(event) {
     console.log('⌨️ handleKeyboardSelection called with key:', event.key);
-    
+
     // Only handle keys that might change selection
     const selectionKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown', 'a'];
     const modifierKeys = event.shiftKey || event.ctrlKey || event.metaKey;
-    
+
     if (selectionKeys.includes(event.key) && modifierKeys) {
         console.log('⌨️ Keyboard selection event detected');
-        
+
         // Delay to let selection update
         setTimeout(() => {
             const selection = window.getSelection();
@@ -1033,33 +1077,33 @@ function handleKeyboardSelection(event) {
 
 function createFollowUpButton(text) {
     console.log('Creating follow-up action buttons for text:', text.substring(0, 50) + '...');
-    
+
     // Check if we can activate this feature
     if (!eventCoordinator.canActivateFeature('follow-up')) {
         console.log('Cannot activate follow-up feature due to priority conflicts');
         return;
     }
-    
+
     // Create container for the three buttons
     followUpButton = document.createElement('div');
     followUpButton.id = 'followUpButtonContainer';
     followUpButton.className = 'gemini-enhancer-action-buttons';
     followUpButton.setAttribute('role', 'toolbar');
     followUpButton.setAttribute('aria-label', 'Follow-up actions');
-    
+
     // Store in state
     enhancerState.set('followUp.button', followUpButton);
-    
+
     // Store original text for debugging and fallback
     followUpButton.dataset.originalText = text;
-    
+
     // Define the three action buttons
     const actions = [
         { id: 'askAbout', text: 'Ask about this', prompt: 'Can you tell me more about this: "{text}"?' },
         { id: 'explainFurther', text: 'Explain further', prompt: 'Please explain this in more detail: "{text}"' },
         { id: 'giveExamples', text: 'Give examples', prompt: 'Can you give me some examples related to: "{text}"?' }
     ];
-    
+
     // Create individual buttons
     actions.forEach((action, index) => {
         const button = document.createElement('button');
@@ -1068,34 +1112,34 @@ function createFollowUpButton(text) {
         button.innerHTML = action.text;
         button.dataset.prompt = action.prompt;
         button.setAttribute('aria-label', action.text);
-        
+
         // Add click handler for each button
-        button.onclick = function(event) {
+        button.onclick = function (event) {
             event.preventDefault();
             event.stopPropagation();
-            
+
             // Get the current selection at click time
             const currentSelection = window.getSelection();
             const currentText = currentSelection.toString().trim();
-            
+
             // Use current selection if valid, otherwise fall back to original
             let textToUse = text;
             const originalText = followUpButton.dataset.originalText;
-            
+
             if (currentText && isSelectionFromAIResponse(currentSelection)) {
                 textToUse = currentText;
                 console.log("Using current selection for action:", action.id, textToUse.substring(0, 30) + '...');
             } else {
                 console.log("Using original selection for action:", action.id, textToUse.substring(0, 30) + '...');
             }
-            
+
             // Generate the prompt text
             const promptText = action.prompt.replace('{text}', textToUse);
             console.log("Generated prompt:", promptText);
-            
+
             // Add click feedback
             button.style.transform = 'translateY(0) scale(0.95)';
-            
+
             setTimeout(() => {
                 // Find input box and insert the generated text
                 const inputBox = findGeminiInputBox();
@@ -1103,7 +1147,7 @@ function createFollowUpButton(text) {
                     // Clear any existing content and insert the new prompt
                     inputBox.value = '';
                     inputBox.textContent = '';
-                    
+
                     // Insert the text
                     if (inputBox.tagName === 'TEXTAREA') {
                         inputBox.value = promptText;
@@ -1112,10 +1156,10 @@ function createFollowUpButton(text) {
                         inputBox.textContent = promptText;
                         inputBox.dispatchEvent(new Event('input', { bubbles: true }));
                     }
-                    
+
                     // Focus the input box
                     inputBox.focus();
-                    
+
                     // Set cursor to end
                     if (inputBox.setSelectionRange) {
                         inputBox.setSelectionRange(promptText.length, promptText.length);
@@ -1127,7 +1171,7 @@ function createFollowUpButton(text) {
                         range.collapse(false);
                         selection.addRange(range);
                     }
-                    
+
                     enhancerState.emit('promptGenerated', { action: action.id, text: textToUse, prompt: promptText });
                 } else {
                     console.warn('Could not find input box');
@@ -1135,39 +1179,39 @@ function createFollowUpButton(text) {
                 removeFollowUpButton();
             }, 100);
         };
-        
+
         followUpButton.appendChild(button);
     });
-    
+
     // Position the button container using the reliable positioning logic
     followUpButton.style.position = 'absolute';
     followUpButton.style.zIndex = '10000';
-    
+
     // Initial positioning to prevent flash
     followUpButton.style.left = '0px';
     followUpButton.style.top = '0px';
-    
+
     // Add to DOM first so we can measure it
     document.body.appendChild(followUpButton);
-    
+
     // Now position it properly
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
         const rect = getSelectionBoundingRect(range);
-        
+
         if (rect && rect.width > 0 && rect.height > 0) {
             const containerWidth = followUpButton.offsetWidth || 320;
             const containerHeight = followUpButton.offsetHeight || 48;
             const margin = 8;
-            
+
             // Calculate position above selection
             let buttonTop = rect.top - containerHeight - margin;
             let buttonLeft = rect.left + (rect.width / 2) - (containerWidth / 2);
-            
+
             // Keep within viewport bounds
             buttonLeft = Math.max(8, Math.min(buttonLeft, window.innerWidth - containerWidth - 8));
-            
+
             // If no room above, place below
             if (buttonTop < 8) {
                 buttonTop = rect.bottom + margin;
@@ -1175,14 +1219,14 @@ function createFollowUpButton(text) {
                     buttonTop = 8; // Fallback to top
                 }
             }
-            
+
             // Convert to absolute positioning
             const finalLeft = buttonLeft + window.scrollX;
             const finalTop = buttonTop + window.scrollY;
-            
+
             followUpButton.style.left = `${Math.max(0, finalLeft)}px`;
             followUpButton.style.top = `${Math.max(0, finalTop)}px`;
-            
+
             console.log(`📝 Initial button position: (${finalLeft.toFixed(0)}, ${finalTop.toFixed(0)})`);
         }
     }
@@ -1197,17 +1241,17 @@ function createFollowUpButton(text) {
             enhancerState.set('followUp.stabilityTimeout', null);
         }
     });
-    
+
     followUpButton.addEventListener('mouseleave', () => {
         enhancerState.set('followUp.isHoveringButton', false);
     });
 
     // Activate feature in coordinator
     eventCoordinator.activateFeature('follow-up', { text, position: { top: 0, left: 0 } });
-    
+
     // Force a reflow to ensure initial hidden state is applied
     followUpButton.offsetHeight;
-    
+
     // Trigger show animation on next frame to prevent flash
     requestAnimationFrame(() => {
         if (followUpButton) {
@@ -1236,7 +1280,7 @@ function createFollowUpButton(text) {
 
 function removeFollowUpButton() {
     const followUpButton = enhancerState.get('followUp.button');
-    
+
     if (followUpButton) {
         // Clear any stability timeout
         const stabilityTimeout = enhancerState.get('followUp.stabilityTimeout');
@@ -1244,18 +1288,18 @@ function removeFollowUpButton() {
             clearTimeout(stabilityTimeout);
             enhancerState.set('followUp.stabilityTimeout', null);
         }
-        
+
         // Disable pointer events immediately to prevent interaction during hide
         followUpButton.style.pointerEvents = 'none';
-        
+
         // Remove show class to trigger hide animation
         followUpButton.classList.remove('show');
-        
+
         // Apply explicit hide styles to ensure smooth transition (no left/top animation)
         followUpButton.style.transition = 'opacity 0.15s cubic-bezier(0.4, 0.0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0.0, 0.2, 1)';
         followUpButton.style.opacity = '0';
         followUpButton.style.transform = 'translateY(8px) scale(0.9)';
-        
+
         setTimeout(() => {
             const currentButton = enhancerState.get('followUp.button');
             if (currentButton) {
@@ -1263,11 +1307,11 @@ function removeFollowUpButton() {
                 enhancerState.set('followUp.button', null);
             }
         }, 150);
-        
+
         // Deactivate feature in coordinator
         eventCoordinator.deactivateFeature('follow-up');
     }
-    
+
     // Reset state
     enhancerState.set('followUp.selectedText', '');
     enhancerState.set('followUp.isHoveringButton', false);
@@ -1290,7 +1334,7 @@ function createInlineCitationCard(text, inputBox) {
             <button class="citation-action" data-action="examples">Give examples</button>
         </div>
     `;
-    
+
     // Position card above input box
     const inputRect = inputBox.getBoundingClientRect();
     citationCard.style.cssText = `
@@ -1303,15 +1347,15 @@ function createInlineCitationCard(text, inputBox) {
         transform: translateY(10px);
         transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
     `;
-    
+
     // Add event listeners
     const closeBtn = citationCard.querySelector('.citation-close');
     const actionBtns = citationCard.querySelectorAll('.citation-action');
-    
+
     closeBtn.addEventListener('click', () => {
         removeCitationCard(citationCard);
     });
-    
+
     actionBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
             const action = e.target.dataset.action;
@@ -1319,22 +1363,22 @@ function createInlineCitationCard(text, inputBox) {
             removeCitationCard(citationCard);
         });
     });
-    
+
     document.body.appendChild(citationCard);
-    
+
     // Animate in
     requestAnimationFrame(() => {
         citationCard.style.opacity = '1';
         citationCard.style.transform = 'translateY(0)';
     });
-    
+
     // Auto-remove after 10 seconds if not interacted with
     setTimeout(() => {
         if (document.body.contains(citationCard)) {
             removeCitationCard(citationCard);
         }
     }, 10000);
-    
+
     return citationCard;
 }
 
@@ -1351,7 +1395,7 @@ function removeCitationCard(card) {
 function insertPromptWithCitation(text, action, inputBox) {
     let prompt = '';
     const shortText = text.length > 50 ? text.substring(0, 50) + '...' : text;
-    
+
     switch (action) {
         case 'ask':
             prompt = `Regarding "${shortText}", I want to ask: `;
@@ -1363,12 +1407,12 @@ function insertPromptWithCitation(text, action, inputBox) {
             prompt = `Can you provide examples related to: "${text}"`;
             break;
     }
-    
+
     // Insert with smooth focus transition
     if (inputBox.hasAttribute('contenteditable')) {
         inputBox.innerText = prompt;
         inputBox.focus();
-        
+
         // Position cursor at end
         const range = document.createRange();
         range.selectNodeContents(inputBox);
@@ -1381,7 +1425,7 @@ function insertPromptWithCitation(text, action, inputBox) {
         inputBox.focus();
         inputBox.setSelectionRange(prompt.length, prompt.length);
     }
-    
+
     // Dispatch events for proper integration
     inputBox.dispatchEvent(new Event('input', { bubbles: true }));
     inputBox.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1402,7 +1446,7 @@ function insertTextIntoInputBox(text) {
             'div[data-placeholder*="Enter a prompt"]',
             '*[contenteditable="true"]' // Very broad fallback
         ];
-        
+
         for (const selector of geminiSelectors) {
             inputBox = document.querySelector(selector);
             if (inputBox) {
@@ -1422,7 +1466,7 @@ function insertTextIntoInputBox(text) {
             'textarea',
             'input[type="text"]'
         ];
-        
+
         for (const selector of fallbackSelectors) {
             const elements = document.querySelectorAll(selector);
             // Find the most likely input (visible and not too small)
@@ -1442,10 +1486,10 @@ function insertTextIntoInputBox(text) {
     if (inputBox) {
         console.log("Input box found:", inputBox, "using selector:", selectorUsed);
         console.log("Input box type:", inputBox.tagName, "contenteditable:", inputBox.getAttribute('contenteditable'));
-        
+
         // Store reference for slash commands
         lastInputBox = inputBox;
-        
+
         // Focus the input box
         inputBox.focus();
         inputBox.click(); // Sometimes click is needed to properly focus
@@ -1472,7 +1516,7 @@ function insertTextIntoInputBox(text) {
             } catch (e) {
                 console.warn("contenteditable method failed:", e);
             }
-        } 
+        }
         // Method 2: For textarea and input elements
         else if (inputBox.tagName.toLowerCase() === 'textarea' || inputBox.tagName.toLowerCase() === 'input') {
             try {
@@ -1515,18 +1559,18 @@ function insertTextIntoInputBox(text) {
 
 function handleInputChange(event) {
     const target = event.target;
-    
+
     // Check if this is a chat input box
     if (isChatInputBox(target)) {
         lastInputBox = target;
         enhancerState.set('slashCommands.lastInputBox', target);
         const text = getInputText(target);
         const cursorPos = getCursorPosition(target);
-        
+
         // Check for slash command at cursor position
         const beforeCursor = text.substring(0, cursorPos);
         const slashMatch = beforeCursor.match(/\/(\w*)$/);
-        
+
         // Debug logging
         console.log('Input change detected:', {
             text: text,
@@ -1535,7 +1579,7 @@ function handleInputChange(event) {
             slashMatch: slashMatch,
             dropdownVisible: commandAutocomplete ? commandAutocomplete.style.display !== 'none' : false
         });
-        
+
         if (slashMatch) {
             const partial = slashMatch[1].toLowerCase();
             showCommandAutocomplete(target, partial, slashMatch.index);
@@ -1555,7 +1599,7 @@ function handleKeyDown(event) {
     if (commandAutocomplete && commandAutocomplete.style.display !== 'none') {
         const items = commandAutocomplete.querySelectorAll('.autocomplete-item');
         let selectedIndex = Array.from(items).findIndex(item => item.classList.contains('selected'));
-        
+
         switch (event.key) {
             case 'ArrowDown':
                 event.preventDefault();
@@ -1564,7 +1608,7 @@ function handleKeyDown(event) {
                 updateSelection(items, selectedIndex);
                 scrollIntoViewIfNeeded(items[selectedIndex]);
                 break;
-                
+
             case 'ArrowUp':
                 event.preventDefault();
                 event.stopPropagation();
@@ -1572,7 +1616,7 @@ function handleKeyDown(event) {
                 updateSelection(items, selectedIndex);
                 scrollIntoViewIfNeeded(items[selectedIndex]);
                 break;
-                
+
             case 'Enter':
             case 'Tab':
                 event.preventDefault();
@@ -1583,13 +1627,13 @@ function handleKeyDown(event) {
                 }
                 // Return false to prevent any further processing
                 return false;
-                
+
             case 'Escape':
                 event.preventDefault();
                 event.stopPropagation();
                 hideCommandAutocomplete();
                 break;
-                
+
             case 'Backspace':
             case 'Delete':
                 // On deletion keys, we'll let the input event handle the logic
@@ -1622,7 +1666,7 @@ function handleKeyUp(event) {
             const cursorPos = getCursorPosition(event.target);
             const beforeCursor = text.substring(0, cursorPos);
             const slashMatch = beforeCursor.match(/\/(\w*)$/);
-            
+
             if (!slashMatch && commandAutocomplete && commandAutocomplete.style.display !== 'none') {
                 console.log('KeyUp: No slash command found, hiding dropdown');
                 hideCommandAutocomplete();
@@ -1651,7 +1695,7 @@ function handleDocumentClick(event) {
         if (commandAutocomplete.contains(event.target)) {
             return;
         }
-        
+
         // If clicking outside the dropdown and not on the input box, hide dropdown
         if (!commandAutocomplete.contains(event.target) && !isChatInputBox(event.target)) {
             hideCommandAutocomplete();
@@ -1728,7 +1772,7 @@ function scheduleClearInputAfterSend() {
 
 function isChatInputBox(element) {
     const hostname = window.location.hostname;
-    
+
     if (hostname.includes('gemini.google.com')) {
         // Be permissive with Gemini's evolving DOM while staying targeted
         const geminiSelectors = [
@@ -1742,7 +1786,7 @@ function isChatInputBox(element) {
         ].join(',');
         return (element as Element).matches(geminiSelectors) || !!(element as Element).closest(geminiSelectors);
     }
-    
+
     // Fallback for any contenteditable or textarea that looks like a chat input
     const fallbackSelectors = 'div[contenteditable="true"], textarea, input[type="text"]';
     return element.matches(fallbackSelectors) || !!element.closest(fallbackSelectors);
@@ -1784,45 +1828,45 @@ function showCommandAutocomplete(inputElement, partial, slashIndex) {
     lastInputBox = inputElement;
     enhancerState.set('slashCommands.lastInputBox', inputElement);
 
-    const matchingCommands = Object.keys(slashCommands).filter(cmd => 
+    const matchingCommands = Object.keys(slashCommands).filter(cmd =>
         cmd.toLowerCase().startsWith(partial)
     );
-    
+
     console.log('showCommandAutocomplete called:', {
         partial: partial,
         matchingCommands: matchingCommands,
         slashIndex: slashIndex
     });
-    
+
     if (matchingCommands.length === 0) {
         hideCommandAutocomplete();
         return;
     }
-    
+
     // Double-check that we still have a valid slash command at cursor position
     const currentText = getInputText(inputElement);
     const currentCursorPos = getCursorPosition(inputElement);
     const currentBeforeCursor = currentText.substring(0, currentCursorPos);
     const currentSlashMatch = currentBeforeCursor.match(/\/(\w*)$/);
-    
+
     if (!currentSlashMatch) {
         console.log('Slash command no longer valid, hiding dropdown');
         hideCommandAutocomplete();
         return;
     }
-    
+
     // Create or update autocomplete dropdown
     if (!commandAutocomplete) {
         commandAutocomplete = createAutocompleteDropdown();
     }
-    
+
     // Position the dropdown
     positionAutocomplete(inputElement);
-    
+
     // Get selected text for better preview
     const selectedText = window.getSelection().toString().trim();
     const previewText = selectedText || '[selected text]';
-    
+
     // Populate with matching commands in a native-like list style
     commandAutocomplete.innerHTML = matchingCommands.map((cmd, index) => {
         const commandPrompt = slashCommands[cmd] || '';
@@ -1850,7 +1894,7 @@ function showCommandAutocomplete(inputElement, partial, slashIndex) {
     if (first) {
         commandAutocomplete.setAttribute('aria-activedescendant', first.id || '');
     }
-    
+
     // Add hover handlers for native-like selection
     commandAutocomplete.querySelectorAll('.autocomplete-item').forEach((item, index) => {
         // Click handlers
@@ -1859,13 +1903,13 @@ function showCommandAutocomplete(inputElement, partial, slashIndex) {
             event.stopPropagation();
             selectCommand(item.dataset.command);
         }, { capture: true });
-        
+
         item.addEventListener('mousedown', (event) => {
             event.preventDefault();
             event.stopPropagation();
             selectCommand(item.dataset.command);
         }, { capture: true });
-        
+
         // Hover selection
         item.addEventListener('mouseenter', () => {
             // Update selection state with a11y
@@ -1873,19 +1917,19 @@ function showCommandAutocomplete(inputElement, partial, slashIndex) {
             const idx = Array.from(items).indexOf(item);
             updateSelection(items, Math.max(0, idx));
         });
-        
+
         item.addEventListener('mouseleave', () => {
             // No-op
         });
     });
-    
+
     // Activate feature in coordinator
-    eventCoordinator.activateFeature('slash-commands', { 
-        partial, 
+    eventCoordinator.activateFeature('slash-commands', {
+        partial,
         commands: matchingCommands,
-        inputElement 
+        inputElement
     });
-    
+
     // Show with smooth animation
     commandAutocomplete.style.display = 'block';
     commandAutocomplete.setAttribute('aria-expanded', 'true');
@@ -1898,7 +1942,7 @@ function showCommandAutocomplete(inputElement, partial, slashIndex) {
             commandAutocomplete.style.transform = 'translateY(0) scale(1)';
         }
     }, 0);
-    
+
     // Re-position after content is populated (for accurate height calculation)
     setTimeout(() => positionAutocomplete(inputElement), 0);
 }
@@ -1913,39 +1957,39 @@ function createAutocompleteDropdown() {
     // Styles are now handled by the CSS file for better theme support
     document.body.appendChild(commandAutocomplete);
     // Track in centralized state for coordination
-    try { enhancerState.set('slashCommands.autocomplete', commandAutocomplete); } catch (_) {}
+    try { enhancerState.set('slashCommands.autocomplete', commandAutocomplete); } catch (_) { }
     return commandAutocomplete;
 }
 
 function positionAutocomplete(inputElement) {
     const style = commandAutocomplete.style;
     const dropdownHeight = commandAutocomplete.offsetHeight || 280; // fallback height matches max-height
-    
+
     // Get cursor position for precise positioning
     const cursorPos = getCursorPosition(inputElement);
     const caretCoords = getCaretCoordinates(inputElement, cursorPos);
-    
+
     if (caretCoords) {
         // Position dropdown above the cursor line with proper spacing (native feel)
         const targetTop = caretCoords.top - dropdownHeight - 8; // 8px gap for better visual spacing
-        
+
         style.left = `${caretCoords.left}px`;
         style.top = `${targetTop}px`;
-        
+
         // Handle viewport boundaries
         const viewportWidth = window.innerWidth;
-        
+
         // If dropdown goes above viewport, position below cursor line instead
         if (targetTop < window.scrollY + 20) {
             style.top = `${caretCoords.bottom + 2}px`;
         }
-        
+
         // Ensure dropdown doesn't go off right edge
         const dropdownWidth = 420; // Native-like width
         if (caretCoords.left + dropdownWidth > viewportWidth) {
             style.left = `${viewportWidth - dropdownWidth - 10}px`;
         }
-        
+
         style.width = `${dropdownWidth}px`;
         style.minWidth = '360px';
         style.maxWidth = '480px';
@@ -1957,7 +2001,7 @@ function positionAutocomplete(inputElement) {
         style.width = '420px';
         style.minWidth = '360px';
         style.maxWidth = '480px';
-        
+
         if (rect.top - dropdownHeight < 0) {
             style.top = `${window.scrollY + rect.bottom + 8}px`;
         }
@@ -2052,53 +2096,53 @@ function selectCommand(commandName) {
     console.log('selectCommand called with:', commandName);
     console.log('lastInputBox:', lastInputBox);
     console.log('slashCommands[commandName]:', slashCommands[commandName]);
-    
+
     if (!lastInputBox || !slashCommands[commandName]) {
         console.log('Cannot select command - missing input box or command');
         hideCommandAutocomplete();
         return;
     }
-    
+
     const text = getInputText(lastInputBox);
     const cursorPos = getCursorPosition(lastInputBox);
-    
+
     console.log('Current text:', text);
     console.log('Cursor position:', cursorPos);
-    
+
     // Find the slash command in the text
     const beforeCursor = text.substring(0, cursorPos);
     const slashMatch = beforeCursor.match(/\/(\w*)$/);
-    
+
     console.log('Slash match:', slashMatch);
-    
+
     if (slashMatch) {
         const commandPrompt = slashCommands[commandName];
         const selectedText = window.getSelection().toString().trim();
-        
+
         console.log('Command prompt:', commandPrompt);
         console.log('Selected text:', selectedText);
-        
+
         // Replace {text} placeholder with selected text
         const finalPrompt = commandPrompt.replace(/\{text\}/g, selectedText || '');
-        
+
         // Replace the slash command with the prompt
         const newText = text.substring(0, slashMatch.index) + finalPrompt + text.substring(cursorPos);
-        
+
         console.log('Final prompt:', finalPrompt);
         console.log('New text:', newText);
-        
+
         // Update the input
         setInputText(lastInputBox, newText);
-        
+
         // Position cursor after the inserted text
         const newCursorPos = slashMatch.index + finalPrompt.length;
         setCursorPosition(lastInputBox, newCursorPos);
-        
+
         console.log('Command selection completed successfully');
     } else {
         console.log('No slash match found in text');
     }
-    
+
     hideCommandAutocomplete();
 }
 
@@ -2118,7 +2162,7 @@ function setCursorPosition(element, position) {
     } else if (element.hasAttribute('contenteditable')) {
         const range = document.createRange();
         const sel = window.getSelection();
-        
+
         // Find the text node and position
         const walker = document.createTreeWalker(
             element,
@@ -2126,15 +2170,15 @@ function setCursorPosition(element, position) {
             null,
             false
         );
-        
+
         let currentPos = 0;
         let textNode = walker.nextNode();
-        
+
         while (textNode && currentPos + textNode.textContent.length < position) {
             currentPos += textNode.textContent.length;
             textNode = walker.nextNode();
         }
-        
+
         if (textNode) {
             range.setStart(textNode, position - currentPos);
             range.setEnd(textNode, position - currentPos);
@@ -2147,10 +2191,10 @@ function setCursorPosition(element, position) {
 function hideCommandAutocomplete() {
     if (commandAutocomplete) {
         console.log('Hiding command autocomplete dropdown');
-        
+
         // Deactivate feature in coordinator
         eventCoordinator.deactivateFeature('slash-commands');
-        
+
         // Smooth hide animation
         commandAutocomplete.style.opacity = '0';
         commandAutocomplete.style.transform = 'translateY(8px) scale(0.95)';
@@ -2167,11 +2211,11 @@ function hideCommandAutocomplete() {
 
 function scrollIntoViewIfNeeded(element) {
     if (!element || !commandAutocomplete) return;
-    
+
     const container = commandAutocomplete;
     const containerRect = container.getBoundingClientRect();
     const elementRect = element.getBoundingClientRect();
-    
+
     if (elementRect.top < containerRect.top) {
         // Element is above visible area
         element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
