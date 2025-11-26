@@ -254,25 +254,68 @@ document.addEventListener('DOMContentLoaded', async function () {
         }, 2500);
     }
 
-    // Wide Mode Logic
+    // Feature Toggle Elements
+    const followUpToggle = document.getElementById('followUpToggle') as HTMLInputElement;
+    const slashCommandsToggle = document.getElementById('slashCommandsToggle') as HTMLInputElement;
     const wideModeToggle = document.getElementById('wideModeToggle') as HTMLInputElement;
     const widthControl = document.getElementById('widthControl') as HTMLElement;
     const widthSlider = document.getElementById('widthSlider') as HTMLInputElement;
     const widthValue = document.getElementById('widthValue') as HTMLElement;
 
-    // Load saved settings
-    browserAPI.storage.sync.get(['wideMode', 'wideModeWidth'], (result) => {
-        const isEnabled = result.wideMode || false;
+    // Load all saved settings
+    browserAPI.storage.sync.get(['followUpEnabled', 'slashCommandsEnabled', 'wideMode', 'wideModeWidth'], (result) => {
+        // Follow-up buttons (default: enabled)
+        const followUpEnabled = result.followUpEnabled !== false;
+        if (followUpToggle) followUpToggle.checked = followUpEnabled;
+
+        // Slash commands (default: enabled)
+        const slashCommandsEnabled = result.slashCommandsEnabled !== false;
+        if (slashCommandsToggle) slashCommandsToggle.checked = slashCommandsEnabled;
+
+        // Wide mode
+        const wideEnabled = result.wideMode || false;
         const width = result.wideModeWidth || 1200;
 
-        if (wideModeToggle) wideModeToggle.checked = isEnabled;
+        if (wideModeToggle) wideModeToggle.checked = wideEnabled;
         if (widthSlider) widthSlider.value = width.toString();
         if (widthValue) widthValue.textContent = `${width}px`;
 
-        if (isEnabled && widthControl) {
+        if (wideEnabled && widthControl) {
             widthControl.style.display = 'block';
         }
     });
+
+    // Follow-up Buttons Toggle
+    if (followUpToggle) {
+        followUpToggle.addEventListener('change', () => {
+            const isEnabled = followUpToggle.checked;
+            browserAPI.storage.sync.set({ followUpEnabled: isEnabled });
+
+            // Send message to active tab
+            sendMessageToActiveTab({
+                type: 'UPDATE_FOLLOW_UP',
+                enabled: isEnabled
+            });
+
+            showNotification(isEnabled ? 'Follow-up buttons enabled' : 'Follow-up buttons disabled', 'success');
+        });
+    }
+
+    // Slash Commands Toggle
+    if (slashCommandsToggle) {
+        slashCommandsToggle.addEventListener('change', () => {
+            const isEnabled = slashCommandsToggle.checked;
+            browserAPI.storage.sync.set({ slashCommandsEnabled: isEnabled });
+
+            // Send message to active tab
+            sendMessageToActiveTab({
+                type: 'UPDATE_SLASH_COMMANDS',
+                enabled: isEnabled
+            });
+
+            showNotification(isEnabled ? 'Slash commands enabled' : 'Slash commands disabled', 'success');
+        });
+    }
 
     // Toggle Wide Mode
     if (wideModeToggle) {

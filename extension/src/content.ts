@@ -28,6 +28,13 @@ let isRepositionScheduled = false; // throttle scroll-based reposition
 class EnhancerState {
     constructor() {
         this.state = {
+            // Feature toggle states (default: enabled)
+            features: {
+                followUpEnabled: true,
+                slashCommandsEnabled: true,
+                wideModeEnabled: false
+            },
+
             // Follow-up system state
             followUp: {
                 button: null,
@@ -387,6 +394,9 @@ function isSelectionFromAIResponse(selection) {
 
 // Note: browserAPI and legacy variables are now declared at the top
 
+// Load feature toggle states from storage
+loadFeatureStates();
+
 // Load slash commands from storage
 loadSlashCommands();
 
@@ -394,10 +404,31 @@ loadSlashCommands();
 
 // Listen for messages from popup
 browserAPI.runtime.onMessage.addListener((message) => {
+    console.log('Message received:', message);
+    
     if (message.type === 'UPDATE_WIDE_MODE') {
         applyWideMode(message.enabled, message.width);
     }
-    console.log('Message received:', message);
+    
+    if (message.type === 'UPDATE_FOLLOW_UP') {
+        enhancerState.set('features.followUpEnabled', message.enabled);
+        console.log('Follow-up buttons:', message.enabled ? 'enabled' : 'disabled');
+        
+        // If disabling, remove any existing follow-up button
+        if (!message.enabled) {
+            removeFollowUpButton();
+        }
+    }
+    
+    if (message.type === 'UPDATE_SLASH_COMMANDS') {
+        enhancerState.set('features.slashCommandsEnabled', message.enabled);
+        console.log('Slash commands:', message.enabled ? 'enabled' : 'disabled');
+        
+        // If disabling, hide any visible autocomplete
+        if (!message.enabled) {
+            hideCommandAutocomplete();
+        }
+    }
 });
 
 // Wide Mode Implementation
@@ -443,17 +474,57 @@ browserAPI.storage.sync.get(['wideMode', 'wideModeWidth'], (result) => {
     }
 });
 
-// Listen for storage changes to update commands in real-time
+// Listen for storage changes to update settings in real-time
 browserAPI.storage.onChanged.addListener((changes, namespace) => {
-    if (namespace === 'sync' && changes.slashCommands) {
-        slashCommands = changes.slashCommands.newValue || {};
-        console.log('Slash commands updated:', slashCommands);
-    }
-    if (namespace === 'sync' && changes.slashCommands) {
-        slashCommands = changes.slashCommands.newValue || {};
-        console.log('Slash commands updated:', slashCommands);
+    if (namespace === 'sync') {
+        // Update slash commands
+        if (changes.slashCommands) {
+            slashCommands = changes.slashCommands.newValue || {};
+            console.log('Slash commands updated:', slashCommands);
+        }
+        
+        // Update feature toggle states
+        if (changes.followUpEnabled !== undefined) {
+            const enabled = changes.followUpEnabled.newValue !== false;
+            enhancerState.set('features.followUpEnabled', enabled);
+            console.log('Follow-up buttons:', enabled ? 'enabled' : 'disabled');
+            if (!enabled) {
+                removeFollowUpButton();
+            }
+        }
+        
+        if (changes.slashCommandsEnabled !== undefined) {
+            const enabled = changes.slashCommandsEnabled.newValue !== false;
+            enhancerState.set('features.slashCommandsEnabled', enabled);
+            console.log('Slash commands:', enabled ? 'enabled' : 'disabled');
+            if (!enabled) {
+                hideCommandAutocomplete();
+            }
+        }
     }
 });
+
+// Load feature toggle states from storage
+async function loadFeatureStates() {
+    try {
+        const result = await browserAPI.storage.sync.get(['followUpEnabled', 'slashCommandsEnabled']);
+        
+        // Default to enabled if not set
+        const followUpEnabled = result.followUpEnabled !== false;
+        const slashCommandsEnabled = result.slashCommandsEnabled !== false;
+        
+        enhancerState.set('features.followUpEnabled', followUpEnabled);
+        enhancerState.set('features.slashCommandsEnabled', slashCommandsEnabled);
+        
+        console.log('Feature states loaded:', { followUpEnabled, slashCommandsEnabled });
+    } catch (error) {
+        if (error.message.includes('Extension context invalidated')) {
+            console.log('Extension context invalidated - using default feature states');
+            return;
+        }
+        console.error('Error loading feature states:', error);
+    }
+}
 
 async function loadSlashCommands() {
     try {
@@ -678,6 +749,13 @@ function handleAnyScroll() {
 }
 
 function handleTextSelection(event) {
+    // Check if follow-up feature is enabled
+    if (!enhancerState.get('features.followUpEnabled')) {
+        const existing = enhancerState.get('followUp.button');
+        if (existing) removeFollowUpButton();
+        return;
+    }
+    
     // Respect excluded pages
     if (isExcludedPath()) {
         // Ensure any existing button is removed when on excluded page
@@ -1283,6 +1361,14 @@ function insertTextIntoInputBox(text) {
 
 function handleInputChange(event) {
     const target = event.target;
+
+    // Check if slash commands feature is enabled
+    if (!enhancerState.get('features.slashCommandsEnabled')) {
+        if (commandAutocomplete && commandAutocomplete.style.display !== 'none') {
+            hideCommandAutocomplete();
+        }
+        return;
+    }
 
     // Check if this is a chat input box
     if (isChatInputBox(target)) {

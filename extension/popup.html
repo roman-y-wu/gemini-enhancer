@@ -391,6 +391,38 @@
         input[type=range]:focus {
             outline: none;
         }
+
+        /* Toggle row styles */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--divider-color);
+        }
+
+        .toggle-row:last-of-type {
+            border-bottom: none;
+        }
+
+        .toggle-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .toggle-label {
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .toggle-description {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 16px;
+        }
     </style>
 </head>
 
@@ -401,17 +433,45 @@
     </div>
 
     <div class="section">
-        <h2 class="section-header">Interface Settings</h2>
+        <h2 class="section-header">Feature Toggles</h2>
         <div style="padding: 12px 24px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                <label for="wideModeToggle" style="font-weight: 500; color: var(--text-primary);">Wide Mode</label>
+            <!-- Follow-up Buttons Toggle -->
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <label for="followUpToggle" class="toggle-label">Follow-up Buttons</label>
+                    <span class="toggle-description">Show action buttons when selecting AI response text</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="followUpToggle" checked>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <!-- Slash Commands Toggle -->
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <label for="slashCommandsToggle" class="toggle-label">Slash Commands</label>
+                    <span class="toggle-description">Use /commands for quick prompt templates</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="slashCommandsToggle" checked>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <!-- Wide Mode Toggle -->
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <label for="wideModeToggle" class="toggle-label">Wide Mode</label>
+                    <span class="toggle-description">Expand chat conversation width</span>
+                </div>
                 <label class="switch">
                     <input type="checkbox" id="wideModeToggle">
                     <span class="slider round"></span>
                 </label>
             </div>
 
-            <div id="widthControl" style="display: none;">
+            <div id="widthControl" style="display: none; margin-top: 12px; padding-left: 8px; border-left: 2px solid var(--border-subtle);">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                     <label for="widthSlider" style="font-size: 12px; color: var(--text-secondary);">Chat Width</label>
                     <span id="widthValue" style="font-size: 12px; color: var(--text-secondary);">1200px</span>
