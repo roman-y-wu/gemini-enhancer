@@ -131,31 +131,22 @@ class EnhancerState {
 // Global state instance
 const enhancerState = new EnhancerState();
 
-// Lightweight in-page toast for non-blocking notifications
+// Lightweight in-page toast for non-blocking notifications (uses unified design from styles.css)
 function showToast(message, type = 'info') {
     try {
-        // Reuse style element if present
-        if (!document.getElementById('ge_toast_styles')) {
-            const style = document.createElement('style');
-            style.id = 'ge_toast_styles';
-            style.textContent = `
-                @keyframes ge_slideInFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-                @keyframes ge_slideOutFade { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(8px); } }
-                .ge-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-                  background: #137333; color: #fff; padding: 8px 12px; border-radius: 6px; font: 500 13px 'Google Sans',system-ui,sans-serif;
-                  z-index: 2147483647; box-shadow: 0 2px 8px rgba(0,0,0,.2); opacity: 0; animation: ge_slideInFade .15s ease forwards; }
-                .ge-toast.error { background: #d93025; }
-            `;
-            document.head.appendChild(style);
-        }
+        // Remove any existing toast
+        const existing = document.querySelector('.ge-toast');
+        if (existing) existing.remove();
+
         const el = document.createElement('div');
-        el.className = `ge-toast ${type === 'error' ? 'error' : ''}`;
+        el.className = `ge-toast ${type === 'error' ? 'error' : type === 'success' ? 'success' : ''}`;
         el.textContent = message;
         document.body.appendChild(el);
+        
         setTimeout(() => {
-            el.style.animation = 'ge_slideOutFade .15s ease forwards';
-            setTimeout(() => el.remove(), 180);
-        }, 2200);
+            el.style.animation = 'ge-toast-out 0.2s ease forwards';
+            setTimeout(() => el.remove(), 200);
+        }, 2500);
     } catch (_) {
         // Fallback to console if DOM not ready
         console.log('[Gemini Enhancer]', type, message);

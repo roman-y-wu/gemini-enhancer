@@ -1,104 +1,49 @@
-/* Native Gemini-style Follow-up Button */
-#followUpButton {
-  position: absolute;
-  z-index: 10001;
-  background: #ffffff;
-  color: #3c4043;
-  border: 1px solid #dadce0;
-  padding: 6px 12px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(60,64,67,.15);
-  font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-  line-height: 20px;
-  min-height: 32px;
-  user-select: none;
-  -webkit-user-select: none;
-  /* Start completely hidden */
-  opacity: 0;
-  transform: translateY(8px) scale(0.9);
-  pointer-events: none;
-  /* No transition initially to prevent flash */
-  transition: none;
-  will-change: opacity, transform;
-}
+/* ============================================
+   Gemini Enhancer - Unified Design System
+   Matches native ChatGPT/Grok aesthetic
+   ============================================ */
 
-#followUpButton:hover {
-  background: #f8f9fa;
-  box-shadow: 0 2px 6px rgba(60,64,67,.2);
-  border-color: #c0c4cc;
-}
-
-#followUpButton:active {
-  background: #f1f3f4;
-  box-shadow: 0 1px 2px rgba(60,64,67,.15);
-  transform: translateY(0) scale(0.98);
+/* Design tokens */
+:root {
+    --ge-font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --ge-bg-primary: #ffffff;
+    --ge-bg-secondary: #f8f9fa;
+    --ge-bg-hover: rgba(0, 0, 0, 0.06);
+    --ge-bg-active: rgba(0, 0, 0, 0.1);
+    --ge-text-primary: #1f1f1f;
+    --ge-text-secondary: #5f6368;
+    --ge-text-muted: #9aa0a6;
+    --ge-border: rgba(0, 0, 0, 0.08);
+    --ge-shadow: 0 2px 12px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
+    --ge-shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    --ge-accent: #1a73e8;
+    --ge-success: #34a853;
+    --ge-radius-sm: 8px;
+    --ge-radius-md: 12px;
+    --ge-radius-lg: 20px;
+    --ge-radius-full: 9999px;
+    --ge-transition: 0.15s ease-out;
 }
 
 @media (prefers-color-scheme: dark) {
-    #followUpButton {
-        background: #3c4043;
-        color: #e8eaed;
-        border-color: #5f6368;
-        box-shadow: 0 1px 3px rgba(0,0,0,.3);
+    :root {
+        --ge-bg-primary: #2d2d2d;
+        --ge-bg-secondary: #3c3c3c;
+        --ge-bg-hover: rgba(255, 255, 255, 0.08);
+        --ge-bg-active: rgba(255, 255, 255, 0.12);
+        --ge-text-primary: #e3e3e3;
+        --ge-text-secondary: #9aa0a6;
+        --ge-text-muted: #6e6e6e;
+        --ge-border: rgba(255, 255, 255, 0.1);
+        --ge-shadow: 0 2px 12px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.08);
+        --ge-shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+        --ge-accent: #8ab4f8;
+        --ge-success: #81c995;
     }
-    
-    #followUpButton:hover {
-        background: #48494a;
-        border-color: #6e7175;
-        box-shadow: 0 2px 6px rgba(0,0,0,.4);
-    }
-    
-    #followUpButton:active {
-        background: #3c4043;
-        box-shadow: 0 1px 2px rgba(0,0,0,.3);
-    }
-}
-
-/* Show animation - enable transitions and animate */
-#followUpButton.show {
-    transition: opacity 0.2s cubic-bezier(0.4, 0.0, 0.2, 1),
-                transform 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    pointer-events: auto;
-}
-
-/* Ensure smooth hover transitions after show */
-#followUpButton.show:hover {
-    transition: all 0.15s cubic-bezier(0.4, 0.0, 0.2, 1);
-}
-
-/* Follow-up button icon */
-#followUpButton::before {
-    content: '↪';
-    font-size: 16px;
-    line-height: 1;
-    margin-right: 2px;
-    color: #5f6368;
-}
-
-@media (prefers-color-scheme: dark) {
-    #followUpButton::before {
-        color: #9aa0a6;
-    }
-}
-
-/* Prevent button removal when hovering */
-#followUpButton:hover {
-    /* Higher z-index when hovering to prevent interference */
-    z-index: 10002;
 }
 
 /* ============================================
-   Native Selection Toolbar (ChatGPT/Grok style)
+   Selection Toolbar (Follow-up Helper)
    ============================================ */
 
 .gemini-enhancer-toolbar {
@@ -108,13 +53,12 @@
     align-items: center;
     gap: 2px;
     padding: 4px;
-    background: #ffffff;
-    border-radius: 24px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
-    font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--ge-bg-primary);
+    border-radius: var(--ge-radius-full);
+    box-shadow: var(--ge-shadow);
+    font-family: var(--ge-font-family);
     user-select: none;
     -webkit-user-select: none;
-    /* Hidden by default */
     opacity: 0;
     transform: translateY(4px) scale(0.95);
     pointer-events: none;
@@ -126,18 +70,9 @@
     opacity: 1;
     transform: translateY(0) scale(1);
     pointer-events: auto;
-    transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+    transition: opacity var(--ge-transition), transform var(--ge-transition);
 }
 
-/* Dark mode toolbar */
-@media (prefers-color-scheme: dark) {
-    .gemini-enhancer-toolbar {
-        background: #2d2d2d;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
-    }
-}
-
-/* Toolbar buttons */
 .gemini-enhancer-toolbar-btn {
     display: flex;
     align-items: center;
@@ -146,99 +81,41 @@
     padding: 8px 14px;
     background: transparent;
     border: none;
-    border-radius: 20px;
+    border-radius: var(--ge-radius-lg);
     cursor: pointer;
-    color: #1f1f1f;
+    color: var(--ge-text-primary);
+    font-family: var(--ge-font-family);
     font-size: 13px;
     font-weight: 500;
     line-height: 1;
     white-space: nowrap;
-    transition: background 0.1s ease, color 0.1s ease;
+    transition: background var(--ge-transition), transform 0.1s ease;
     position: relative;
 }
 
 .gemini-enhancer-toolbar-btn:hover {
-    background: rgba(0, 0, 0, 0.06);
+    background: var(--ge-bg-hover);
 }
 
 .gemini-enhancer-toolbar-btn:active {
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--ge-bg-active);
     transform: scale(0.96);
 }
 
-/* Dark mode buttons */
-@media (prefers-color-scheme: dark) {
-    .gemini-enhancer-toolbar-btn {
-        color: #e3e3e3;
-    }
-    
-    .gemini-enhancer-toolbar-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-    }
-    
-    .gemini-enhancer-toolbar-btn:active {
-        background: rgba(255, 255, 255, 0.15);
-    }
-}
-
-/* Button icons - using SVG for crisp rendering */
 .gemini-enhancer-toolbar-btn svg {
     width: 16px;
     height: 16px;
     flex-shrink: 0;
 }
 
-/* Divider between button groups */
 .gemini-enhancer-toolbar-divider {
     width: 1px;
     height: 20px;
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--ge-border);
     margin: 0 4px;
 }
 
-@media (prefers-color-scheme: dark) {
-    .gemini-enhancer-toolbar-divider {
-        background: rgba(255, 255, 255, 0.15);
-    }
-}
-
-/* Quote indicator */
-.gemini-enhancer-toolbar-quote {
-    display: flex;
-    align-items: center;
-    padding: 6px 10px;
-    font-size: 12px;
-    color: #5f6368;
-    max-width: 150px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.gemini-enhancer-toolbar-quote::before {
-    content: '"';
-    margin-right: 2px;
-    color: #9aa0a6;
-}
-
-.gemini-enhancer-toolbar-quote::after {
-    content: '"';
-    margin-left: 2px;
-    color: #9aa0a6;
-}
-
-@media (prefers-color-scheme: dark) {
-    .gemini-enhancer-toolbar-quote {
-        color: #9aa0a6;
-    }
-    
-    .gemini-enhancer-toolbar-quote::before,
-    .gemini-enhancer-toolbar-quote::after {
-        color: #5f6368;
-    }
-}
-
-/* Tooltip for icon-only buttons */
+/* Tooltip */
 .gemini-enhancer-toolbar-btn[data-tooltip]::after {
     content: attr(data-tooltip);
     position: absolute;
@@ -246,15 +123,15 @@
     left: 50%;
     transform: translateX(-50%);
     padding: 6px 10px;
-    background: #1f1f1f;
-    color: #fff;
+    background: var(--ge-text-primary);
+    color: var(--ge-bg-primary);
     font-size: 12px;
     font-weight: 400;
     border-radius: 6px;
     white-space: nowrap;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.15s ease, visibility 0.15s ease;
+    transition: opacity var(--ge-transition), visibility var(--ge-transition);
     pointer-events: none;
     z-index: 10002;
 }
@@ -264,43 +141,27 @@
     visibility: visible;
 }
 
-@media (prefers-color-scheme: dark) {
-    .gemini-enhancer-toolbar-btn[data-tooltip]::after {
-        background: #e3e3e3;
-        color: #1f1f1f;
-    }
-}
+/* ============================================
+   Slash Command Autocomplete
+   ============================================ */
 
-/* Legacy support - hide old classes */
-.gemini-enhancer-action-buttons,
-.gemini-enhancer-action-btn {
-    display: none !important;
-}
-
-/* Native Gemini-style Slash Command Autocomplete */
 #slashCommandAutocomplete {
     position: absolute;
-    background: #ffffff;
-    border: 1px solid #dadce0;
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(60,64,67,.15);
-    max-height: 320px;
-    overflow-y: auto;
     z-index: 10001;
     display: none;
-    min-width: 360px;
-    max-width: 480px;
-    font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-    font-size: 14px;
-    line-height: 20px;
-    transition: opacity 0.15s cubic-bezier(0.4, 0.0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0.0, 0.2, 1);
+    min-width: 320px;
+    max-width: 400px;
+    max-height: 300px;
+    overflow-y: auto;
+    background: var(--ge-bg-primary);
+    border-radius: var(--ge-radius-md);
+    box-shadow: var(--ge-shadow-lg);
+    font-family: var(--ge-font-family);
     opacity: 0;
-    transform: translateY(8px) scale(0.96);
-    pointer-events: auto;
+    transform: translateY(4px) scale(0.98);
+    transition: opacity var(--ge-transition), transform var(--ge-transition);
     user-select: none;
     -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
     will-change: opacity, transform;
 }
 
@@ -309,125 +170,103 @@
     transform: translateY(0) scale(1);
 }
 
-@media (prefers-color-scheme: dark) {
-    #slashCommandAutocomplete {
-        background: #303134;
-        border-color: #5f6368;
-        box-shadow: 0 8px 24px rgba(0,0,0,.4);
-    }
-}
-
+/* Autocomplete items */
 .autocomplete-item {
-    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
     cursor: pointer;
-    border: none;
-    transition: background-color 0.1s cubic-bezier(0.4, 0.0, 0.2, 1);
+    transition: background var(--ge-transition);
+    border-radius: 0;
     margin: 0;
-    border-radius: 8px;
-    user-select: none;
-    -webkit-user-select: none;
-    pointer-events: auto;
 }
 
-/* Rounded list visually matches native */
-.autocomplete-item:first-child { border-top-left-radius: 12px; border-top-right-radius: 12px; }
-.autocomplete-item:last-child { border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
-
-.autocomplete-item:hover {
-    background-color: #f8f9fa;
+.autocomplete-item:first-child {
+    border-radius: var(--ge-radius-md) var(--ge-radius-md) 0 0;
 }
 
-@media (prefers-color-scheme: dark) {
-    .autocomplete-item:hover {
-        background-color: #3c4043;
-    }
+.autocomplete-item:last-child {
+    border-radius: 0 0 var(--ge-radius-md) var(--ge-radius-md);
 }
 
-.autocomplete-item.selected { background-color: #f1f3f4; }
-
-/* Improve keyboard focus for autocomplete */
-#slashCommandAutocomplete[role="listbox"] .autocomplete-item[aria-selected="true"] {
-  outline: 2px solid rgba(26,115,232,0.24);
-  outline-offset: -2px;
+.autocomplete-item:only-child {
+    border-radius: var(--ge-radius-md);
 }
 
-@media (prefers-color-scheme: dark) { .autocomplete-item.selected { background-color: #3c4043; } }
+.autocomplete-item:hover,
+.autocomplete-item.selected {
+    background: var(--ge-bg-hover);
+}
 
-/* Native-like list row */
-.ac-row { display: flex; align-items: center; gap: 12px; }
+.autocomplete-item[aria-selected="true"] {
+    background: var(--ge-bg-active);
+}
+
+/* Autocomplete item layout */
+.ac-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
 .ac-icon {
-    width: 28px; height: 28px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    background: #e8f0fe; color: #1a73e8; font-weight: 600; font-size: 13px;
-}
-@media (prefers-color-scheme: dark) {
-    .ac-icon { background: #3c4043; color: #e8eaed; }
-}
-.ac-content { display: flex; flex-direction: column; }
-.ac-title { font-weight: 500; color: #202124; }
-.ac-sub { font-size: 12px; line-height: 16px; color: #5f6368; }
-@media (prefers-color-scheme: dark) {
-    .ac-title { color: #e8eaed; }
-    .ac-sub { color: #9aa0a6; }
-}
-
-/* Enhanced command header layout */
-.command-header {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--ge-radius-sm);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 4px;
-}
-
-.command-name {
-    font-weight: 500;
-    color: #3c4043;
+    justify-content: center;
+    background: var(--ge-bg-secondary);
+    color: var(--ge-accent);
+    font-weight: 600;
     font-size: 14px;
-    line-height: 20px;
-    font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    flex-shrink: 0;
+}
+
+.ac-content {
     display: flex;
-    align-items: center;
-    gap: 6px;
+    flex-direction: column;
+    gap: 2px;
     flex: 1;
+    min-width: 0;
 }
 
-.command-name .slash-indicator {
-    color: #5f6368;
-    font-weight: 400;
+.ac-title {
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--ge-text-primary);
 }
 
-@media (prefers-color-scheme: dark) {
-    .command-name {
-        color: #e8eaed;
-    }
-    
-    .command-name .slash-indicator {
-        color: #9aa0a6;
-    }
-}
-
-.command-preview {
-    font-size: 13px;
-    color: #5f6368;
-    line-height: 18px;
-    max-height: 36px;
+.ac-sub {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--ge-text-secondary);
     overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-@media (prefers-color-scheme: dark) {
-    .command-preview {
-        color: #9aa0a6;
-    }
+/* Keyboard hint */
+.keyboard-hint {
+    font-size: 11px;
+    color: var(--ge-text-muted);
+    background: var(--ge-bg-secondary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity var(--ge-transition);
 }
 
-/* Native Gemini-style scrollbar */
+.autocomplete-item.selected .keyboard-hint,
+.autocomplete-item:hover .keyboard-hint {
+    opacity: 1;
+}
+
+/* Scrollbar */
 #slashCommandAutocomplete::-webkit-scrollbar {
-    width: 8px;
+    width: 6px;
 }
 
 #slashCommandAutocomplete::-webkit-scrollbar-track {
@@ -435,273 +274,78 @@
 }
 
 #slashCommandAutocomplete::-webkit-scrollbar-thumb {
-    background: #dadce0;
-    border-radius: 4px;
-    border: 2px solid #ffffff;
+    background: var(--ge-text-muted);
+    border-radius: 3px;
 }
 
 #slashCommandAutocomplete::-webkit-scrollbar-thumb:hover {
-    background: #bdc1c6;
+    background: var(--ge-text-secondary);
 }
 
-@media (prefers-color-scheme: dark) {
-    #slashCommandAutocomplete::-webkit-scrollbar-thumb {
-        background: #5f6368;
-        border-color: #2f2f2f;
-    }
-    
-    #slashCommandAutocomplete::-webkit-scrollbar-thumb:hover {
-        background: #80868b;
-    }
-}
+/* ============================================
+   Toast Notifications
+   ============================================ */
 
-/* Live Preview for Slash Commands */
-.live-preview {
-    background: #f8f9fa;
-    border-radius: 8px;
-    padding: 12px;
-    margin-top: 8px;
-    border: 1px solid #e8eaed;
-    max-height: 120px;
-    overflow-y: auto;
-}
-
-@media (prefers-color-scheme: dark) {
-    .live-preview {
-        background: #35363a;
-        border-color: #5f6368;
-    }
-}
-
-.preview-label {
-    font-size: 11px;
-    font-weight: 500;
-    color: #5f6368;
-    margin-bottom: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-@media (prefers-color-scheme: dark) {
-    .preview-label {
-        color: #9aa0a6;
-    }
-}
-
-.preview-content {
-    font-size: 13px;
-    line-height: 18px;
-    color: #3c4043;
-    font-style: italic;
-    word-wrap: break-word;
-}
-
-@media (prefers-color-scheme: dark) {
-    .preview-content {
-        color: #e8eaed;
-    }
-}
-
-/* Keyboard shortcut hint - now in header */
-.keyboard-hint {
-    font-size: 12px;
-    color: #9aa0a6;
-    font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-    opacity: 0;
-    transition: opacity 0.1s ease;
-    background: #f1f3f4;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 500;
-}
-
-.autocomplete-item.selected .keyboard-hint {
-    opacity: 1;
-}
-
-@media (prefers-color-scheme: dark) {
-    .keyboard-hint {
-        color: #9aa0a6;
-        background: #48494a;
-    }
-}
-
-/* Enhanced Citation Cards */
-.gemini-enhancer-citation-card {
-    background: #ffffff;
-    border: 1px solid #e8eaed;
-    border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(60,64,67,.15);
-    font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-    overflow: hidden;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    will-change: opacity, transform;
-}
-
-@media (prefers-color-scheme: dark) {
-    .gemini-enhancer-citation-card {
-        background: #2f2f2f;
-        border-color: #5f6368;
-        box-shadow: 0 4px 16px rgba(0,0,0,.3);
-    }
-}
-
-.citation-header {
+.ge-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
     display: flex;
     align-items: center;
-    padding: 12px 16px;
-    background: #f8f9fa;
-    border-bottom: 1px solid #e8eaed;
-    font-size: 13px;
-    font-weight: 500;
-    color: #3c4043;
-}
-
-@media (prefers-color-scheme: dark) {
-    .citation-header {
-        background: #3c4043;
-        border-color: #5f6368;
-        color: #e8eaed;
-    }
-}
-
-.citation-icon {
-    font-size: 16px;
-    margin-right: 8px;
-    color: #1a73e8;
-}
-
-@media (prefers-color-scheme: dark) {
-    .citation-icon {
-        color: #8ab4f8;
-    }
-}
-
-.citation-label {
-    flex: 1;
-}
-
-.citation-close {
-    background: none;
-    border: none;
-    font-size: 18px;
-    color: #5f6368;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    transition: all 0.15s ease;
-    line-height: 1;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.citation-close:hover {
-    background: #f1f3f4;
-    color: #3c4043;
-}
-
-@media (prefers-color-scheme: dark) {
-    .citation-close {
-        color: #9aa0a6;
-    }
-    
-    .citation-close:hover {
-        background: #48494a;
-        color: #e8eaed;
-    }
-}
-
-.citation-content {
-    padding: 16px;
-    font-size: 14px;
-    line-height: 20px;
-    color: #3c4043;
-    max-height: 120px;
-    overflow-y: auto;
-    border-bottom: 1px solid #e8eaed;
-}
-
-@media (prefers-color-scheme: dark) {
-    .citation-content {
-        color: #e8eaed;
-        border-color: #5f6368;
-    }
-}
-
-.citation-actions {
-    display: flex;
     gap: 8px;
     padding: 12px 16px;
-    background: #fafbfc;
-}
-
-@media (prefers-color-scheme: dark) {
-    .citation-actions {
-        background: #292a2d;
-    }
-}
-
-.citation-action {
-    background: #ffffff;
-    border: 1px solid #dadce0;
-    border-radius: 20px;
-    padding: 8px 16px;
-    font-size: 13px;
+    background: var(--ge-text-primary);
+    color: var(--ge-bg-primary);
+    font-family: var(--ge-font-family);
+    font-size: 14px;
     font-weight: 500;
-    color: #1a73e8;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-    font-family: inherit;
+    border-radius: var(--ge-radius-sm);
+    box-shadow: var(--ge-shadow-lg);
+    z-index: 2147483647;
+    opacity: 0;
+    animation: ge-toast-in 0.2s ease forwards;
 }
 
-.citation-action:hover {
-    background: #f8f9fa;
-    border-color: #c0c4cc;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(60,64,67,.1);
+.ge-toast.error {
+    background: #d93025;
+    color: #fff;
 }
 
-.citation-action:active {
-    transform: translateY(0);
-    box-shadow: none;
+.ge-toast.success {
+    background: var(--ge-success);
+    color: #fff;
 }
 
-@media (prefers-color-scheme: dark) {
-    .citation-action {
-        background: #3c4043;
-        border-color: #5f6368;
-        color: #8ab4f8;
+@keyframes ge-toast-in {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(8px);
     }
-    
-    .citation-action:hover {
-        background: #48494a;
-        border-color: #6e7175;
-        box-shadow: 0 2px 4px rgba(0,0,0,.2);
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
     }
 }
 
-/* Citation card responsive design */
-@media (max-width: 600px) {
-    .gemini-enhancer-citation-card {
-        width: calc(100vw - 32px) !important;
-        left: 16px !important;
+@keyframes ge-toast-out {
+    from {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
     }
-    
-    .citation-actions {
-        flex-direction: column;
-    }
-    
-    .citation-action {
-        width: 100%;
-        text-align: center;
+    to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(8px);
     }
 }
 
-/* Enhanced Context Menu */
-/* Context menu styles removed as requested */
+/* ============================================
+   Legacy Support - Hide old elements
+   ============================================ */
 
+#followUpButton,
+.gemini-enhancer-action-buttons,
+.gemini-enhancer-action-btn,
+.gemini-enhancer-citation-card {
+    display: none !important;
+}

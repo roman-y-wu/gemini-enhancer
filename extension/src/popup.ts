@@ -90,17 +90,21 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         commandsList.innerHTML = commandsArray.map(([trigger, prompt]) => `
             <div class="command-item" data-trigger="${trigger}">
-                <div class="command-trigger">/${trigger}</div>
-                <div class="command-description">${prompt}</div>
-                <div style="display:flex; gap:8px;">
-                  <button class="delete-btn" data-trigger="${trigger}">Delete</button>
-                  <button class="delete-btn" data-edit="${trigger}">Edit</button>
+                <span class="command-badge">/${trigger}</span>
+                <span class="command-text">${prompt}</span>
+                <div class="command-actions">
+                    <button class="action-btn" data-edit="${trigger}" title="Edit">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                    <button class="action-btn danger" data-trigger="${trigger}" title="Delete">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
                 </div>
             </div>
         `).join('');
 
-        // Add delete event listeners
-        commandsList.querySelectorAll('.delete-btn').forEach((btn: Element) => {
+        // Add event listeners
+        commandsList.querySelectorAll('.action-btn').forEach((btn: Element) => {
             const htmlBtn = btn as HTMLElement;
             if (htmlBtn.dataset.trigger) {
                 htmlBtn.addEventListener('click', () => deleteCommand(htmlBtn.dataset.trigger!));
@@ -203,53 +207,16 @@ document.addEventListener('DOMContentLoaded', async function () {
             existingNotification.remove();
         }
 
-        // Create notification element
+        // Create notification element (uses styles from popup.html)
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
         notification.textContent = message;
-        notification.style.cssText = `
-            position: fixed;
-            top: 16px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: ${type === 'error' ? '#d93025' : '#137333'};
-            color: white;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-size: 13px;
-            font-weight: 400;
-            line-height: 20px;
-            z-index: 10000;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            transition: all 0.2s ease;
-            opacity: 0;
-            animation: slideInFade 0.2s ease forwards;
-            max-width: calc(100% - 32px);
-            text-align: center;
-        `;
-
-        // Add animation keyframes if not already added
-        if (!document.querySelector('#notificationStyles')) {
-            const style = document.createElement('style');
-            style.id = 'notificationStyles';
-            style.textContent = `
-                @keyframes slideInFade {
-                    from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
-                    to { opacity: 1; transform: translateX(-50%) translateY(0); }
-                }
-                @keyframes slideOutFade {
-                    from { opacity: 1; transform: translateX(-50%) translateY(0); }
-                    to { opacity: 0; transform: translateX(-50%) translateY(-8px); }
-                }
-            `;
-            document.head.appendChild(style);
-        }
 
         document.body.appendChild(notification);
 
-        // Auto-remove after 2.5 seconds (Chrome-like timing)
+        // Auto-remove after 2.5 seconds
         setTimeout(() => {
-            notification.style.animation = 'slideOutFade 0.2s ease forwards';
+            notification.style.animation = 'toast-out 0.2s ease forwards';
             setTimeout(() => notification.remove(), 200);
         }, 2500);
     }
@@ -281,7 +248,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         if (widthValue) widthValue.textContent = `${width}px`;
 
         if (wideEnabled && widthControl) {
-            widthControl.style.display = 'block';
+            widthControl.classList.add('show');
         }
     });
 
@@ -321,7 +288,13 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (wideModeToggle) {
         wideModeToggle.addEventListener('change', () => {
             const isEnabled = wideModeToggle.checked;
-            if (widthControl) widthControl.style.display = isEnabled ? 'block' : 'none';
+            if (widthControl) {
+                if (isEnabled) {
+                    widthControl.classList.add('show');
+                } else {
+                    widthControl.classList.remove('show');
+                }
+            }
 
             browserAPI.storage.sync.set({ wideMode: isEnabled });
 
