@@ -689,16 +689,16 @@ function updateButtonPosition() {
         // Skip if selection is not visible
         if (!rect || rect.width === 0 || rect.height === 0) return;
 
-        // Get container dimensions dynamically
-        const containerWidth = followUpButton.offsetWidth || 320;
-        const containerHeight = followUpButton.offsetHeight || 48;
-        const margin = 8;
+        // Get toolbar dimensions
+        const toolbarWidth = followUpButton.offsetWidth || 280;
+        const toolbarHeight = followUpButton.offsetHeight || 40;
+        const gap = 6;
 
-        // Calculate position above selection
-        let buttonTop = rect.top - containerHeight - margin;
-        let buttonLeft = rect.left + (rect.width / 2) - (containerWidth / 2);
+        // Position above selection, centered
+        let buttonTop = rect.top - toolbarHeight - gap;
+        let buttonLeft = rect.left + (rect.width / 2) - (toolbarWidth / 2);
 
-        // Keep within viewport bounds
+        // Keep within viewport
         const viewport = {
             width: window.innerWidth,
             height: window.innerHeight,
@@ -706,14 +706,12 @@ function updateButtonPosition() {
             scrollY: window.scrollY
         };
 
-        // Horizontal bounds
-        buttonLeft = Math.max(8, Math.min(buttonLeft, viewport.width - containerWidth - 8));
+        buttonLeft = Math.max(8, Math.min(buttonLeft, viewport.width - toolbarWidth - 8));
 
-        // Vertical bounds - if no room above, place below
+        // If no room above, place below
         if (buttonTop < 8) {
-            buttonTop = rect.bottom + margin;
-            if (buttonTop + containerHeight > viewport.height - 8) {
-                // If no room above or below, place at top of viewport
+            buttonTop = rect.bottom + gap;
+            if (buttonTop + toolbarHeight > viewport.height - 8) {
                 buttonTop = 8;
             }
         }
@@ -722,17 +720,16 @@ function updateButtonPosition() {
         const finalLeft = buttonLeft + viewport.scrollX;
         const finalTop = buttonTop + viewport.scrollY;
 
-        // Update position if changed significantly
+        // Only update if position changed significantly
         const currentLeft = parseFloat(followUpButton.style.left) || 0;
         const currentTop = parseFloat(followUpButton.style.top) || 0;
 
         if (Math.abs(currentLeft - finalLeft) > 1 || Math.abs(currentTop - finalTop) > 1) {
             followUpButton.style.left = `${Math.max(0, finalLeft)}px`;
             followUpButton.style.top = `${Math.max(0, finalTop)}px`;
-            console.log(`📝 Button positioned at (${finalLeft.toFixed(0)}, ${finalTop.toFixed(0)})`);
         }
     } catch (error) {
-        console.warn('Error updating button position:', error);
+        console.warn('Error updating toolbar position:', error);
     }
 }
 
@@ -878,7 +875,7 @@ function handleKeyboardSelection(event) {
 }
 
 function createFollowUpButton(text) {
-    console.log('Creating follow-up action buttons for text:', text.substring(0, 50) + '...');
+    console.log('Creating follow-up toolbar for text:', text.substring(0, 50) + '...');
 
     // Check if we can activate this feature
     if (!eventCoordinator.canActivateFeature('follow-up')) {
@@ -886,10 +883,10 @@ function createFollowUpButton(text) {
         return;
     }
 
-    // Create container for the three buttons
+    // Create native-style toolbar container
     followUpButton = document.createElement('div');
     followUpButton.id = 'followUpButtonContainer';
-    followUpButton.className = 'gemini-enhancer-action-buttons';
+    followUpButton.className = 'gemini-enhancer-toolbar';
     followUpButton.setAttribute('role', 'toolbar');
     followUpButton.setAttribute('aria-label', 'Follow-up actions');
 
@@ -899,23 +896,30 @@ function createFollowUpButton(text) {
     // Store original text for debugging and fallback
     followUpButton.dataset.originalText = text;
 
-    // Define the three action buttons
+    // SVG icons for native look
+    const icons = {
+        ask: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+        explain: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
+        examples: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
+        copy: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`
+    };
+
+    // Define toolbar actions - more compact labels
     const actions = [
-        { id: 'askAbout', text: 'Ask about this', prompt: 'Can you tell me more about this: "{text}"?' },
-        { id: 'explainFurther', text: 'Explain further', prompt: 'Please explain this in more detail: "{text}"' },
-        { id: 'giveExamples', text: 'Give examples', prompt: 'Can you give me some examples related to: "{text}"?' }
+        { id: 'askAbout', label: 'Ask', icon: icons.ask, prompt: 'Can you tell me more about this: "{text}"?' },
+        { id: 'explainFurther', label: 'Explain', icon: icons.explain, prompt: 'Please explain this in more detail: "{text}"' },
+        { id: 'giveExamples', label: 'Examples', icon: icons.examples, prompt: 'Can you give me some examples related to: "{text}"?' }
     ];
 
-    // Create individual buttons
+    // Create action buttons
     actions.forEach((action, index) => {
         const button = document.createElement('button');
-        button.id = `followUpAction_${action.id}`;
-        button.className = 'gemini-enhancer-action-btn';
-        button.innerHTML = action.text;
+        button.className = 'gemini-enhancer-toolbar-btn';
+        button.innerHTML = `${action.icon}<span>${action.label}</span>`;
         button.dataset.prompt = action.prompt;
-        button.setAttribute('aria-label', action.text);
+        button.setAttribute('aria-label', action.label);
 
-        // Add click handler for each button
+        // Add click handler
         button.onclick = function (event) {
             event.preventDefault();
             event.stopPropagation();
@@ -926,7 +930,6 @@ function createFollowUpButton(text) {
 
             // Use current selection if valid, otherwise fall back to original
             let textToUse = text;
-            const originalText = followUpButton.dataset.originalText;
 
             if (currentText && isSelectionFromAIResponse(currentSelection)) {
                 textToUse = currentText;
@@ -939,18 +942,17 @@ function createFollowUpButton(text) {
             const promptText = action.prompt.replace('{text}', textToUse);
             console.log("Generated prompt:", promptText);
 
-            // Add click feedback
-            button.style.transform = 'translateY(0) scale(0.95)';
+            // Visual feedback
+            button.style.transform = 'scale(0.95)';
 
             setTimeout(() => {
                 // Find input box and insert the generated text
                 const inputBox = findGeminiInputBox();
                 if (inputBox) {
-                    // Clear any existing content and insert the new prompt
+                    // Clear and insert
                     inputBox.value = '';
                     inputBox.textContent = '';
 
-                    // Insert the text
                     if (inputBox.tagName === 'TEXTAREA') {
                         inputBox.value = promptText;
                         inputBox.dispatchEvent(new Event('input', { bubbles: true }));
@@ -959,7 +961,6 @@ function createFollowUpButton(text) {
                         inputBox.dispatchEvent(new Event('input', { bubbles: true }));
                     }
 
-                    // Focus the input box
                     inputBox.focus();
 
                     // Set cursor to end
@@ -979,57 +980,75 @@ function createFollowUpButton(text) {
                     console.warn('Could not find input box');
                 }
                 removeFollowUpButton();
-            }, 100);
+            }, 80);
         };
 
         followUpButton.appendChild(button);
     });
 
-    // Position the button container using the reliable positioning logic
+    // Add copy button with divider
+    const divider = document.createElement('div');
+    divider.className = 'gemini-enhancer-toolbar-divider';
+    followUpButton.appendChild(divider);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'gemini-enhancer-toolbar-btn';
+    copyBtn.innerHTML = icons.copy;
+    copyBtn.setAttribute('data-tooltip', 'Copy');
+    copyBtn.setAttribute('aria-label', 'Copy to clipboard');
+    copyBtn.onclick = function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        navigator.clipboard.writeText(text).then(() => {
+            // Show copied feedback
+            copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+            copyBtn.style.color = '#34a853';
+            setTimeout(() => removeFollowUpButton(), 600);
+        });
+    };
+    followUpButton.appendChild(copyBtn);
+
+    // Position the toolbar - absolute positioning
     followUpButton.style.position = 'absolute';
-    followUpButton.style.zIndex = '10000';
+    followUpButton.style.zIndex = '10001';
 
-    // Initial positioning to prevent flash
-    followUpButton.style.left = '0px';
-    followUpButton.style.top = '0px';
-
-    // Add to DOM first so we can measure it
+    // Add to DOM first (hidden) so we can measure
     document.body.appendChild(followUpButton);
 
-    // Now position it properly
+    // Position near the selection (like ChatGPT/Grok)
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
         const rect = getSelectionBoundingRect(range);
 
         if (rect && rect.width > 0 && rect.height > 0) {
-            const containerWidth = followUpButton.offsetWidth || 320;
-            const containerHeight = followUpButton.offsetHeight || 48;
-            const margin = 8;
+            const toolbarWidth = followUpButton.offsetWidth || 280;
+            const toolbarHeight = followUpButton.offsetHeight || 40;
+            const gap = 6;
 
-            // Calculate position above selection
-            let buttonTop = rect.top - containerHeight - margin;
-            let buttonLeft = rect.left + (rect.width / 2) - (containerWidth / 2);
+            // Position above selection, centered on selection
+            let buttonTop = rect.top - toolbarHeight - gap;
+            let buttonLeft = rect.left + (rect.width / 2) - (toolbarWidth / 2);
 
-            // Keep within viewport bounds
-            buttonLeft = Math.max(8, Math.min(buttonLeft, window.innerWidth - containerWidth - 8));
+            // Keep within viewport
+            buttonLeft = Math.max(8, Math.min(buttonLeft, window.innerWidth - toolbarWidth - 8));
 
-            // If no room above, place below
+            // If no room above, place below selection
             if (buttonTop < 8) {
-                buttonTop = rect.bottom + margin;
-                if (buttonTop + containerHeight > window.innerHeight - 8) {
-                    buttonTop = 8; // Fallback to top
+                buttonTop = rect.bottom + gap;
+                if (buttonTop + toolbarHeight > window.innerHeight - 8) {
+                    buttonTop = 8;
                 }
             }
 
-            // Convert to absolute positioning
+            // Convert to absolute (account for scroll)
             const finalLeft = buttonLeft + window.scrollX;
             const finalTop = buttonTop + window.scrollY;
 
             followUpButton.style.left = `${Math.max(0, finalLeft)}px`;
             followUpButton.style.top = `${Math.max(0, finalTop)}px`;
 
-            console.log(`📝 Initial button position: (${finalLeft.toFixed(0)}, ${finalTop.toFixed(0)})`);
+            console.log(`📝 Toolbar positioned at (${finalLeft.toFixed(0)}, ${finalTop.toFixed(0)})`);
         }
     }
 
