@@ -475,7 +475,7 @@ function applyWideMode(enabled: boolean, width: number) {
 // Initialize Wide Mode
 browserAPI.storage.sync.get(['wideMode', 'wideModeWidth'], (result) => {
     if (result.wideMode) {
-        applyWideMode(true, result.wideModeWidth || 1200);
+        applyWideMode(true, result.wideModeWidth || 1000);
     }
 });
 

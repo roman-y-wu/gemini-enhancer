@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         // Wide mode
         const wideEnabled = result.wideMode || false;
-        const width = result.wideModeWidth || 1200;
+        const width = result.wideModeWidth || 1000;
 
         if (wideModeToggle) wideModeToggle.checked = wideEnabled;
         if (widthSlider) widthSlider.value = width.toString();
