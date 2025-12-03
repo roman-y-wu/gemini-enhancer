@@ -1044,19 +1044,24 @@ function createFollowUpButton(text) {
                         inputBox.dispatchEvent(new Event('input', { bubbles: true }));
                     }
 
+                    // Focus the input box
                     (inputBox as HTMLElement).focus();
 
-                    // Set cursor to end
-                    if ((inputBox as any).setSelectionRange) {
-                        (inputBox as HTMLInputElement).setSelectionRange(promptText.length, promptText.length);
-                    } else if (window.getSelection) {
-                        const selection = window.getSelection();
-                        selection?.removeAllRanges();
-                        const range = document.createRange();
-                        range.selectNodeContents(inputBox);
-                        range.collapse(false);
-                        selection?.addRange(range);
-                    }
+                    // Set cursor to end with a small delay to allow IME to initialize properly
+                    // This prevents issues with CJK input methods where the first character
+                    // might be captured incorrectly
+                    setTimeout(() => {
+                        if ((inputBox as any).setSelectionRange) {
+                            (inputBox as HTMLInputElement).setSelectionRange(promptText.length, promptText.length);
+                        } else if (window.getSelection) {
+                            const selection = window.getSelection();
+                            selection?.removeAllRanges();
+                            const range = document.createRange();
+                            range.selectNodeContents(inputBox);
+                            range.collapse(false);
+                            selection?.addRange(range);
+                        }
+                    }, 50);
 
                     enhancerState.emit('promptGenerated', { action: action.id, text: textToUse, prompt: promptText });
                 } else {
@@ -1556,18 +1561,8 @@ function handleKeyDown(event) {
         }
     }
 
-    // After handling autocomplete, detect chat submit via keyboard
-    try {
-        const target = event.target as HTMLElement;
-        const isDropdownVisible = commandAutocomplete && commandAutocomplete.style.display !== 'none';
-        if (!isDropdownVisible && event.key === 'Enter' && !event.shiftKey && !event.altKey && isChatInputBox(target)) {
-            const text = getInputText(target as any);
-            if (text && text.trim().length > 0) {
-                // Defer clearing to allow the site to process the send first
-                scheduleClearInputAfterSend();
-            }
-        }
-    } catch (_) { /* noop */ }
+    // Note: Removed auto-clear on Enter key press as it interferes with IME (Input Method Editor)
+    // composition for CJK languages. Gemini handles clearing the input field itself after sending.
 }
 
 function handleKeyUp(event) {
@@ -1615,37 +1610,13 @@ function handleDocumentClick(event) {
         }
     }
 
-    // Detect clicking Gemini's send/submit button and clear after send
-    try {
-        if (isSendActionTarget(event.target as Element)) {
-            scheduleClearInputAfterSend();
-        }
-    } catch (_) { /* noop */ }
+    // Note: Removed auto-clear on send button click as Gemini handles clearing itself
 }
 
 // Handle form submit if Gemini wraps input in a <form>
+// Note: Removed auto-clear logic as Gemini handles clearing itself
 function handleFormSubmit(event) {
-    try {
-        const form = event.target as HTMLElement;
-        if (!form) return;
-        const input = form.querySelector?.('textarea, input, div[role="textbox"][contenteditable="true"]') as HTMLElement | null;
-        if (input && isChatInputBox(input)) {
-            scheduleClearInputAfterSend();
-        }
-    } catch (_) { /* noop */ }
-}
-
-function isSendActionTarget(target: Element | null): boolean {
-    if (!target) return false;
-    const selectors = [
-        'button[type="submit"]',
-        'button[aria-label*="Send" i]',
-        'button[aria-label*="Submit" i]',
-        '[data-testid*="send" i]',
-        '[aria-label*="Send a message" i]',
-        'div[role="button"][aria-label*="Send" i]'
-    ].join(',');
-    return (target.matches?.(selectors) || !!(target as HTMLElement).closest?.(selectors)) ?? false;
+    // Placeholder for potential future form submit handling
 }
 
 function findGeminiInputBox() {
@@ -1672,32 +1643,6 @@ function findGeminiInputBox() {
         }
     }
     return null;
-}
-
-function scheduleClearInputAfterSend() {
-    // Small delay to allow the host page to read the value and dispatch the message
-    setTimeout(() => {
-        try {
-            const inputField = findGeminiInputBox();
-            if (!inputField) return;
-
-            // Determine current text
-            const currentText = (inputField.tagName === 'TEXTAREA' || inputField.tagName === 'INPUT')
-                ? (inputField as HTMLTextAreaElement | HTMLInputElement).value
-                : (inputField as HTMLElement).innerText;
-            if (!currentText || currentText.trim().length === 0) return; // nothing to clear
-
-            // Clear the field
-            if (inputField.tagName === 'TEXTAREA' || inputField.tagName === 'INPUT') {
-                (inputField as HTMLTextAreaElement | HTMLInputElement).value = '';
-            } else {
-                (inputField as HTMLElement).innerText = '';
-            }
-            inputField.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-            inputField.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
-
-        } catch (_) { /* noop */ }
-    }, 120);
 }
 
 function isChatInputBox(element) {
