@@ -5,7 +5,7 @@
   "main": "dist/content.js",
   "scripts": {
     "prebuild": "rm -rf dist",
-    "build": "tsc || true",
+    "build": "tsc",
     "postbuild": "cp manifest.json dist/ && cp popup.html dist/ && cp styles.css dist/",
     "watch": "tsc -w"
   },

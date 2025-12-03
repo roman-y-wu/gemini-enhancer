@@ -1,12 +1,16 @@
 console.log("Gemini Enhancer content script loaded.");
 
 // Prevent double-injection across SPA navigations or extension reloads
-if (window.__GEMINI_ENHANCER_ACTIVE__) {
-    console.log('Gemini Enhancer already active — skipping init.');
-    // Halt further execution in this context to prevent duplicate listeners
-    throw new Error('Gemini Enhancer already initialized');
-}
+// Using a flag check with early termination to avoid duplicate event listeners
+const __geminiEnhancerAlreadyActive = window.__GEMINI_ENHANCER_ACTIVE__;
 window.__GEMINI_ENHANCER_ACTIVE__ = true;
+
+if (__geminiEnhancerAlreadyActive) {
+    console.log('Gemini Enhancer already active — skipping init.');
+    // Throw to halt script execution without affecting page functionality
+    // This is a common pattern for content scripts to prevent duplicate initialization
+    throw new Error('[Gemini Enhancer] Already initialized - safe to ignore this error');
+}
 
 // Safari compatibility: Use browser API if available, fallback to chrome
 // @ts-ignore
@@ -26,6 +30,11 @@ let isRepositionScheduled = false; // throttle scroll-based reposition
 
 // Centralized State Management System
 class EnhancerState {
+    state: any;
+    cleanup: Set<() => void>;
+    eventBus: EventTarget;
+    initialized: boolean;
+
     constructor() {
         this.state = {
             // Feature toggle states (default: enabled)
@@ -155,6 +164,11 @@ function showToast(message, type = 'info') {
 
 // Unified Event Coordination System
 class EventCoordinator {
+    activeFeatures: Set<string>;
+    eventQueue: any[];
+    isProcessing: boolean;
+    featurePriority: Record<string, number>;
+
     constructor() {
         this.activeFeatures = new Set();
         this.eventQueue = [];
@@ -301,12 +315,12 @@ const eventCoordinator = new EventCoordinator();
 // Context menu functionality removed as requested by user
 
 // Utility: robustly compute a visible selection rectangle
-function getSelectionBoundingRect(range) {
+function getSelectionBoundingRect(range: Range | null): DOMRect | { top: number; left: number; right: number; bottom: number; width: number; height: number } | null {
     try {
         if (!range) return null;
         const rect = range.getBoundingClientRect();
         if (rect && rect.width > 0 && rect.height > 0) return rect;
-        const rects = Array.from(range.getClientRects?.() || []);
+        const rects = Array.from(range.getClientRects?.() || []) as DOMRect[];
         const visible = rects.filter(r => r.width > 0 && r.height > 0);
         if (visible.length === 0) return null;
         const top = Math.min(...visible.map(r => r.top));
@@ -509,7 +523,8 @@ async function loadFeatureStates() {
         
         console.log('Feature states loaded:', { followUpEnabled, slashCommandsEnabled });
     } catch (error) {
-        if (error.message.includes('Extension context invalidated')) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('Extension context invalidated')) {
             console.log('Extension context invalidated - using default feature states');
             return;
         }
@@ -545,7 +560,8 @@ async function loadSlashCommands() {
 
         console.log('Loaded slash commands:', slashCommands);
     } catch (error) {
-        if (error.message.includes('Extension context invalidated')) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('Extension context invalidated')) {
             console.log('Extension context invalidated - skipping slash commands load');
             return;
         }
@@ -599,13 +615,11 @@ function initializeEventListeners() {
         } catch (_) { /* noop */ }
     };
     window.addEventListener('resize', onViewportChange);
-    window.addEventListener('scroll', onViewportChange, { passive: true });
+    window.addEventListener('scroll', onViewportChange, { passive: true } as AddEventListenerOptions);
     enhancerState.addCleanup(() => {
         window.removeEventListener('resize', onViewportChange);
-        window.removeEventListener('scroll', onViewportChange, { passive: true });
+        window.removeEventListener('scroll', onViewportChange);
     });
-
-    console.log('Event listeners initialized with cleanup');
 
     console.log('Event listeners initialized with cleanup');
 }
@@ -938,32 +952,32 @@ function createFollowUpButton(text) {
 
             setTimeout(() => {
                 // Find input box and insert the generated text
-                const inputBox = findGeminiInputBox();
+                const inputBox = findGeminiInputBox() as HTMLInputElement | HTMLTextAreaElement | HTMLElement | null;
                 if (inputBox) {
                     // Clear and insert
-                    inputBox.value = '';
+                    (inputBox as any).value = '';
                     inputBox.textContent = '';
 
                     if (inputBox.tagName === 'TEXTAREA') {
-                        inputBox.value = promptText;
+                        (inputBox as HTMLTextAreaElement).value = promptText;
                         inputBox.dispatchEvent(new Event('input', { bubbles: true }));
                     } else {
                         inputBox.textContent = promptText;
                         inputBox.dispatchEvent(new Event('input', { bubbles: true }));
                     }
 
-                    inputBox.focus();
+                    (inputBox as HTMLElement).focus();
 
                     // Set cursor to end
-                    if (inputBox.setSelectionRange) {
-                        inputBox.setSelectionRange(promptText.length, promptText.length);
+                    if ((inputBox as any).setSelectionRange) {
+                        (inputBox as HTMLInputElement).setSelectionRange(promptText.length, promptText.length);
                     } else if (window.getSelection) {
                         const selection = window.getSelection();
-                        selection.removeAllRanges();
+                        selection?.removeAllRanges();
                         const range = document.createRange();
                         range.selectNodeContents(inputBox);
                         range.collapse(false);
-                        selection.addRange(range);
+                        selection?.addRange(range);
                     }
 
                     enhancerState.emit('promptGenerated', { action: action.id, text: textToUse, prompt: promptText });
@@ -1170,7 +1184,7 @@ function createInlineCitationCard(text, inputBox) {
 
     actionBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const action = e.target.dataset.action;
+            const action = (e.target as HTMLElement).dataset.action;
             insertPromptWithCitation(text, action, inputBox);
             removeCitationCard(citationCard);
         });
@@ -1245,6 +1259,7 @@ function insertPromptWithCitation(text, action, inputBox) {
 
 function insertTextIntoInputBox(text) {
     let inputBox = null;
+    let selectorUsed = ''; // Track which selector was used for logging
     const hostname = window.location.hostname;
 
     if (hostname.includes('gemini.google.com')) {
@@ -1284,7 +1299,7 @@ function insertTextIntoInputBox(text) {
             // Find the most likely input (visible and not too small)
             for (const element of elements) {
                 const rect = element.getBoundingClientRect();
-                if (rect.width > 100 && rect.height > 20 && element.offsetParent !== null) {
+                if (rect.width > 100 && rect.height > 20 && (element as HTMLElement).offsetParent !== null) {
                     inputBox = element;
                     selectorUsed = `${selector} (fallback)`;
                     console.log(`Fallback input box found with selector: ${selector}`);
@@ -1312,8 +1327,8 @@ function insertTextIntoInputBox(text) {
         // Method 1: For contenteditable elements
         if (inputBox.hasAttribute('contenteditable') && inputBox.getAttribute('contenteditable') === 'true') {
             try {
-                // Place citation on first line, cursor on next
-                inputBox.innerText = citationText;
+                // Place text on first line, cursor on next
+                inputBox.innerText = text;
                 inputBox.focus();
                 // Move cursor to end (new line)
                 const range = document.createRange();
@@ -1332,7 +1347,7 @@ function insertTextIntoInputBox(text) {
         // Method 2: For textarea and input elements
         else if (inputBox.tagName.toLowerCase() === 'textarea' || inputBox.tagName.toLowerCase() === 'input') {
             try {
-                inputBox.value = citationText;
+                inputBox.value = text;
                 inputBox.focus();
                 // Move cursor to end (new line)
                 inputBox.setSelectionRange(inputBox.value.length, inputBox.value.length);
@@ -1346,7 +1361,7 @@ function insertTextIntoInputBox(text) {
         // Modern clipboard API fallback
         if (!success) {
             try {
-                navigator.clipboard.writeText(citationText).then(() => {
+                navigator.clipboard.writeText(text).then(() => {
                     inputBox.focus();
                     // Suggest manual paste to user since execCommand is deprecated
                     console.log("Text copied to clipboard. You can paste it manually with Ctrl+V or Cmd+V");
@@ -1357,9 +1372,9 @@ function insertTextIntoInputBox(text) {
             }
         }
         if (success) {
-            console.log(`Successfully inserted citation: "${citationText}" into input box`);
+            console.log(`Successfully inserted text: "${text}" into input box`);
         } else {
-            showToast("Could not insert citation. Copied to clipboard.", 'error');
+            showToast("Could not insert text. Copied to clipboard.", 'error');
         }
     } else {
         showToast("Could not find the Gemini input box.", 'error');
@@ -1418,7 +1433,7 @@ function handleInputChange(event) {
 function handleKeyDown(event) {
     if (commandAutocomplete && commandAutocomplete.style.display !== 'none') {
         const items = commandAutocomplete.querySelectorAll('.autocomplete-item');
-        let selectedIndex = Array.from(items).findIndex(item => item.classList.contains('selected'));
+        let selectedIndex = Array.from(items).findIndex(item => (item as Element).classList.contains('selected'));
 
         switch (event.key) {
             case 'ArrowDown':
@@ -1570,7 +1585,7 @@ function findGeminiInputBox() {
     ];
     for (let selector of selectors) {
         const elem = document.querySelector(selector);
-        if (elem && elem.offsetParent !== null && (elem as HTMLElement).offsetHeight > 0 && (elem as HTMLElement).offsetWidth > 0) {
+        if (elem && (elem as HTMLElement).offsetParent !== null && (elem as HTMLElement).offsetHeight > 0 && (elem as HTMLElement).offsetWidth > 0) {
             const rect = (elem as HTMLElement).getBoundingClientRect();
             // Prefer inputs that live in the lower half of the viewport (chat composer area)
             if (rect.top > window.innerHeight / 2) {
@@ -2004,8 +2019,7 @@ function setCursorPosition(element, position) {
         const walker = document.createTreeWalker(
             element,
             NodeFilter.SHOW_TEXT,
-            null,
-            false
+            null
         );
 
         let currentPos = 0;
