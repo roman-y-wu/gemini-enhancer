@@ -989,7 +989,7 @@ function createFollowUpButton(text) {
 
     // Define toolbar actions - more compact labels
     const actions = [
-        { id: 'askAbout', label: 'Ask', icon: icons.ask, prompt: 'Can you tell me more about this: "{text}"?' },
+        { id: 'askAbout', label: 'Ask', icon: icons.ask, prompt: '```\n{text}\n```\n\n' },
         { id: 'explainFurther', label: 'Explain', icon: icons.explain, prompt: 'Please explain this in more detail: "{text}"' },
         { id: 'giveExamples', label: 'Examples', icon: icons.examples, prompt: 'Can you give me some examples related to: "{text}"?' }
     ];
