@@ -352,11 +352,12 @@ function isSelectionFromAIResponse(selection) {
     let element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
 
     // Check if selection is within input/editable areas (absolute block)
-    while (element && element !== document.body) {
-        const tagName = element.tagName?.toLowerCase();
-        const isEditable = element.contentEditable === 'true' || element.contentEditable === '';
-        const role = element.getAttribute('role');
-        const ariaLabel = element.getAttribute('aria-label');
+    let currentElement = element;
+    while (currentElement && currentElement !== document.body) {
+        const tagName = currentElement.tagName?.toLowerCase();
+        const isEditable = currentElement.contentEditable === 'true' || currentElement.contentEditable === '';
+        const role = currentElement.getAttribute('role');
+        const ariaLabel = currentElement.getAttribute('aria-label');
 
         if (
             tagName === 'textarea' ||
@@ -365,13 +366,90 @@ function isSelectionFromAIResponse(selection) {
             role === 'textbox' ||
             role === 'searchbox' ||
             ariaLabel === 'Message Gemini' ||
-            element.closest('[contenteditable="true"], [contenteditable=""], textarea, input, [role="textbox"], [aria-label="Message Gemini"]')
+            currentElement.closest('[contenteditable="true"], [contenteditable=""], textarea, input, [role="textbox"], [aria-label="Message Gemini"]')
         ) {
             console.log('❌ Selection in input area:', { tagName, isEditable, role, ariaLabel });
             return false;
         }
 
-        element = element.parentElement;
+        currentElement = currentElement.parentElement;
+    }
+
+    // CRITICAL: Check if selection is within Gemini AI response area
+    // Gemini uses specific containers for model responses
+    const aiResponseSelectors = [
+        // Model response containers
+        'model-response',
+        'message-content',
+        '[data-message-author-role="model"]',
+        '[data-content-origin="model"]',
+        // Response text containers
+        '.response-container',
+        '.model-response-text',
+        '.markdown-content',
+        '.response-content',
+        // Gemini-specific elements
+        'message-content[class*="model"]',
+        '.conversation-turn [data-message-author-role="model"]',
+        // Generic response patterns
+        '[class*="response"]',
+        '[class*="answer"]',
+        '[class*="model"]',
+        '[class*="assistant"]'
+    ];
+
+    // Check if the selection element or any ancestor is within an AI response container
+    let isInAIResponse = false;
+    
+    // Method 1: Check using selectors
+    for (const selector of aiResponseSelectors) {
+        try {
+            if (element?.closest(selector)) {
+                isInAIResponse = true;
+                console.log('✅ Selection is within AI response container:', selector);
+                break;
+            }
+        } catch (e) {
+            // Invalid selector, skip
+        }
+    }
+
+    // Method 2: Check for Gemini-specific patterns in class names and attributes
+    if (!isInAIResponse) {
+        let checkElement = element;
+        while (checkElement && checkElement !== document.body) {
+            const className = checkElement.className || '';
+            const classList = typeof className === 'string' ? className.toLowerCase() : '';
+            const dataAttrs = Array.from(checkElement.attributes || [])
+                .filter((attr: Attr) => attr.name.startsWith('data-'))
+                .map((attr: Attr) => `${attr.name}=${attr.value}`)
+                .join(' ')
+                .toLowerCase();
+
+            // Check for AI/model response indicators
+            if (
+                classList.includes('response') ||
+                classList.includes('model') ||
+                classList.includes('answer') ||
+                classList.includes('assistant') ||
+                classList.includes('message-content') ||
+                classList.includes('markdown') ||
+                dataAttrs.includes('model') ||
+                dataAttrs.includes('assistant') ||
+                dataAttrs.includes('response')
+            ) {
+                isInAIResponse = true;
+                console.log('✅ Selection is within AI response (class/data check):', classList || dataAttrs);
+                break;
+            }
+
+            checkElement = checkElement.parentElement;
+        }
+    }
+
+    if (!isInAIResponse) {
+        console.log('❌ Selection is NOT within AI response area');
+        return false;
     }
 
     // Require a visible selection rectangle; do not reject due to incidental
