@@ -989,9 +989,9 @@ function createFollowUpButton(text) {
 
     // Define toolbar actions - more compact labels
     const actions = [
-        { id: 'askAbout', label: 'Ask', icon: icons.ask, prompt: '```\n{text}\n```\n\n' },
-        { id: 'explainFurther', label: 'Explain', icon: icons.explain, prompt: 'Explain this section to me in more detail\n\n```\n{text}\n```' },
-        { id: 'giveExamples', label: 'Examples', icon: icons.examples, prompt: 'Can you give me some examples related to: "{text}"?' }
+        { id: 'askAbout', label: 'Ask', icon: icons.ask, prompt: '```\n{text}\n```\n\n\n' },
+        { id: 'explainFurther', label: 'Explain', icon: icons.explain, prompt: '```\n{text}\n```\n\nExplain this section to me in more detail' },
+        { id: 'giveExamples', label: 'Examples', icon: icons.examples, prompt: '```\n{text}\n```\n\nCan you give me some examples related to the above section.' }
     ];
 
     // Create action buttons
@@ -1047,21 +1047,39 @@ function createFollowUpButton(text) {
                     // Focus the input box
                     (inputBox as HTMLElement).focus();
 
-                    // Set cursor to end with a small delay to allow IME to initialize properly
-                    // This prevents issues with CJK input methods where the first character
-                    // might be captured incorrectly
+                    // Set cursor to end
+                    if ((inputBox as any).setSelectionRange) {
+                        (inputBox as HTMLInputElement).setSelectionRange(promptText.length, promptText.length);
+                    } else if (window.getSelection) {
+                        const selection = window.getSelection();
+                        selection?.removeAllRanges();
+                        const range = document.createRange();
+                        range.selectNodeContents(inputBox);
+                        range.collapse(false);
+                        selection?.addRange(range);
+                    }
+
+                    // Fix for CJK IME issue: simulate arrow key press to "nudge" the cursor
+                    // This resets the IME state and allows proper Chinese/Japanese/Korean input
                     setTimeout(() => {
-                        if ((inputBox as any).setSelectionRange) {
-                            (inputBox as HTMLInputElement).setSelectionRange(promptText.length, promptText.length);
-                        } else if (window.getSelection) {
-                            const selection = window.getSelection();
-                            selection?.removeAllRanges();
-                            const range = document.createRange();
-                            range.selectNodeContents(inputBox);
-                            range.collapse(false);
-                            selection?.addRange(range);
-                        }
-                    }, 50);
+                        // Simulate pressing End key to ensure cursor is at end and IME is reset
+                        const endKeyEvent = new KeyboardEvent('keydown', {
+                            key: 'End',
+                            code: 'End',
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        inputBox.dispatchEvent(endKeyEvent);
+                        
+                        // Also dispatch keyup
+                        const endKeyUpEvent = new KeyboardEvent('keyup', {
+                            key: 'End',
+                            code: 'End',
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        inputBox.dispatchEvent(endKeyUpEvent);
+                    }, 10);
 
                     enhancerState.emit('promptGenerated', { action: action.id, text: textToUse, prompt: promptText });
                 } else {
