@@ -1,11 +1,14 @@
 /**
  * Gemini Enhancer - Content Script
- * 
+ *
  * A Chrome extension that enhances Gemini with:
  * - Follow-up toolbar for quick actions on selected text
  * - Slash commands for custom prompts
  * - Wide mode for expanded conversation width
  */
+
+// Make this file a module to avoid global scope conflicts
+export {};
 
 console.log('Gemini Enhancer content script loaded.');
 
@@ -81,13 +84,15 @@ interface SelectionRect {
     height: number;
 }
 
+/** Input element type that can be a textarea, input, or contenteditable element */
+type InputElement = HTMLTextAreaElement | HTMLInputElement | HTMLElement;
+
 // ============================================================================
 // CONSTANTS & CONFIGURATION
 // ============================================================================
 
 /** Browser API for cross-browser compatibility (Chrome/Safari) */
-// @ts-ignore
-const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
+const browserAPI: typeof chrome = typeof browser !== 'undefined' ? browser : chrome;
 
 /** Default width for wide mode */
 const DEFAULT_WIDE_MODE_WIDTH = 1000;
@@ -216,15 +221,25 @@ class EnhancerState {
     }
 
     /** Get a value from state using dot notation path */
-    get(path: string): any {
-        return path.split('.').reduce((obj, key) => obj?.[key], this.state as any);
+    get<T = unknown>(path: string): T {
+        return path.split('.').reduce<unknown>((obj, key) => {
+            if (obj && typeof obj === 'object' && key in obj) {
+                return (obj as Record<string, unknown>)[key];
+            }
+            return undefined;
+        }, this.state as unknown) as T;
     }
 
     /** Set a value in state using dot notation path */
-    set(path: string, value: any): void {
+    set(path: string, value: unknown): void {
         const keys = path.split('.');
         const lastKey = keys.pop()!;
-        const target = keys.reduce((obj, key) => obj[key] = obj[key] || {}, this.state as any);
+        const target = keys.reduce<Record<string, unknown>>((obj, key) => {
+            if (!(key in obj)) {
+                obj[key] = {};
+            }
+            return obj[key] as Record<string, unknown>;
+        }, this.state as unknown as Record<string, unknown>);
         const oldValue = target[lastKey];
         target[lastKey] = value;
 
@@ -239,7 +254,7 @@ class EnhancerState {
     }
 
     /** Emit a custom event */
-    emit(event: string, data: any): void {
+    emit(event: string, data: Record<string, unknown>): void {
         this.eventBus.dispatchEvent(new CustomEvent(event, { detail: data }));
     }
 
@@ -276,7 +291,7 @@ class EventCoordinator {
     }
 
     /** Activate a feature */
-    activateFeature(featureName: string, data: any = {}): void {
+    activateFeature(featureName: string, data: Record<string, unknown> = {}): void {
         this.activeFeatures.add(featureName);
         enhancerState.set('ui.activeFeature', featureName);
         enhancerState.emit('featureActivated', { feature: featureName, data });
@@ -285,7 +300,7 @@ class EventCoordinator {
     /** Deactivate a feature */
     deactivateFeature(featureName: string): void {
         this.activeFeatures.delete(featureName);
-        if (enhancerState.get('ui.activeFeature') === featureName) {
+        if (enhancerState.get<string | null>('ui.activeFeature') === featureName) {
             enhancerState.set('ui.activeFeature', null);
         }
         enhancerState.emit('featureDeactivated', { feature: featureName });
@@ -293,7 +308,7 @@ class EventCoordinator {
 
     /** Check if a feature can be activated based on priority */
     canActivateFeature(featureName: string): boolean {
-        const currentFeature = enhancerState.get('ui.activeFeature');
+        const currentFeature = enhancerState.get<string | null>('ui.activeFeature');
         if (!currentFeature) return true;
 
         const currentPriority = this.featurePriority[currentFeature] || 0;
@@ -328,7 +343,7 @@ function showToast(message: string, type: 'info' | 'error' | 'success' = 'info')
             el.style.animation = 'ge-toast-out 0.2s ease forwards';
             setTimeout(() => el.remove(), 200);
         }, 2500);
-    } catch (_) {
+    } catch {
         console.log('[Gemini Enhancer]', type, message);
     }
 }
@@ -349,18 +364,18 @@ function getSelectionBoundingRect(range: Range | null): SelectionRect | DOMRect 
         if (!range) return null;
         const rect = range.getBoundingClientRect();
         if (rect && rect.width > 0 && rect.height > 0) return rect;
-        
+
         const rects = Array.from(range.getClientRects?.() || []) as DOMRect[];
         const visible = rects.filter(r => r.width > 0 && r.height > 0);
         if (visible.length === 0) return null;
-        
+
         const top = Math.min(...visible.map(r => r.top));
         const left = Math.min(...visible.map(r => r.left));
         const right = Math.max(...visible.map(r => r.right));
         const bottom = Math.max(...visible.map(r => r.bottom));
-        
+
         return { top, left, right, bottom, width: right - left, height: bottom - top };
-    } catch (_) {
+    } catch {
         return null;
     }
 }
@@ -407,7 +422,7 @@ function isSelectionFromAIResponse(selection: Selection | null): boolean {
                 isInAIResponse = true;
                 break;
             }
-        } catch (_) { /* Invalid selector */ }
+        } catch { /* Invalid selector */ }
     }
 
     // Method 2: Check class names and data attributes
@@ -470,9 +485,9 @@ function findGeminiInputBox(): Element | null {
 /**
  * Check if an element is a chat input box
  */
-function isChatInputBox(element: any): boolean {
-    if (!element) return false;
-    
+function isChatInputBox(element: EventTarget | null): element is InputElement {
+    if (!element || !(element instanceof Element)) return false;
+
     const hostname = window.location.hostname;
     if (hostname.includes('gemini.google.com')) {
         const geminiSelectors = [
@@ -484,8 +499,8 @@ function isChatInputBox(element: any): boolean {
             'div[role="textbox"][aria-label*="Send a message" i]',
             'div[role="textbox"][aria-label*="Prompt" i]'
         ].join(',');
-        return (element as Element).matches?.(geminiSelectors) || 
-               !!(element as Element).closest?.(geminiSelectors);
+        return element.matches?.(geminiSelectors) ||
+               !!element.closest?.(geminiSelectors);
     }
 
     const fallbackSelectors = 'div[contenteditable="true"], textarea, input[type="text"]';
@@ -495,11 +510,12 @@ function isChatInputBox(element: any): boolean {
 /**
  * Get text content from an input element
  */
-function getInputText(element: any): string {
-    if (element.tagName?.toLowerCase() === 'textarea' || element.tagName?.toLowerCase() === 'input') {
-        return element.value || '';
+function getInputText(element: InputElement): string {
+    const tagName = element.tagName?.toLowerCase();
+    if (tagName === 'textarea' || tagName === 'input') {
+        return (element as HTMLTextAreaElement | HTMLInputElement).value || '';
     } else if (element.hasAttribute?.('contenteditable')) {
-        return element.innerText || element.textContent || '';
+        return (element as HTMLElement).innerText || element.textContent || '';
     }
     return '';
 }
@@ -507,9 +523,10 @@ function getInputText(element: any): string {
 /**
  * Get cursor position in an input element
  */
-function getCursorPosition(element: any): number {
-    if (element.tagName?.toLowerCase() === 'textarea' || element.tagName?.toLowerCase() === 'input') {
-        return element.selectionStart || 0;
+function getCursorPosition(element: InputElement): number {
+    const tagName = element.tagName?.toLowerCase();
+    if (tagName === 'textarea' || tagName === 'input') {
+        return (element as HTMLTextAreaElement | HTMLInputElement).selectionStart || 0;
     } else if (element.hasAttribute?.('contenteditable')) {
         const sel = window.getSelection();
         if (sel && sel.rangeCount > 0) {
@@ -519,7 +536,7 @@ function getCursorPosition(element: any): number {
                 preCaretRange.selectNodeContents(element);
                 preCaretRange.setEnd(range.startContainer, range.startOffset);
                 return preCaretRange.toString().length;
-            } catch (_) { return 0; }
+            } catch { return 0; }
         }
     }
     return 0;
@@ -528,12 +545,13 @@ function getCursorPosition(element: any): number {
 /**
  * Set text content of an input element
  */
-function setInputText(element: any, text: string): void {
-    if (element.tagName?.toLowerCase() === 'textarea' || element.tagName?.toLowerCase() === 'input') {
-        element.value = text;
+function setInputText(element: InputElement, text: string): void {
+    const tagName = element.tagName?.toLowerCase();
+    if (tagName === 'textarea' || tagName === 'input') {
+        (element as HTMLTextAreaElement | HTMLInputElement).value = text;
         element.dispatchEvent(new Event('input', { bubbles: true }));
     } else if (element.hasAttribute?.('contenteditable')) {
-        element.innerText = text;
+        (element as HTMLElement).innerText = text;
         element.dispatchEvent(new Event('input', { bubbles: true }));
     }
 }
@@ -541,9 +559,10 @@ function setInputText(element: any, text: string): void {
 /**
  * Set cursor position in an input element
  */
-function setCursorPosition(element: any, position: number): void {
-    if (element.tagName?.toLowerCase() === 'textarea' || element.tagName?.toLowerCase() === 'input') {
-        element.setSelectionRange(position, position);
+function setCursorPosition(element: InputElement, position: number): void {
+    const tagName = element.tagName?.toLowerCase();
+    if (tagName === 'textarea' || tagName === 'input') {
+        (element as HTMLTextAreaElement | HTMLInputElement).setSelectionRange(position, position);
     } else if (element.hasAttribute?.('contenteditable')) {
         const range = document.createRange();
         const sel = window.getSelection();
@@ -569,48 +588,56 @@ function setCursorPosition(element: any, position: number): void {
 /**
  * Get caret coordinates in a textarea or contenteditable element
  */
-function getCaretCoordinates(element: any, caretPos: number): { left: number; top: number; bottom: number } | null {
+function getCaretCoordinates(element: InputElement, caretPos: number): { left: number; top: number; bottom: number } | null {
     if (!element) return null;
-    
+
     const rect = element.getBoundingClientRect();
     let left = rect.left, top = rect.top, bottom = rect.bottom;
+    const tagName = element.tagName?.toLowerCase();
 
     // For textarea/input
-    if (element.tagName?.toLowerCase() === 'textarea' || element.tagName?.toLowerCase() === 'input') {
+    if (tagName === 'textarea' || tagName === 'input') {
+        const inputEl = element as HTMLTextAreaElement | HTMLInputElement;
         const mirror = document.createElement('div');
         const computed = getComputedStyle(element);
-        
-        const props = [
+
+        const styleProps = [
             'boxSizing', 'width', 'height', 'overflowX', 'overflowY',
             'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
             'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
             'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize',
             'lineHeight', 'fontFamily', 'textAlign', 'textTransform', 'textIndent',
             'letterSpacing', 'wordSpacing'
-        ];
-        
-        props.forEach(prop => { (mirror.style as any)[prop] = computed.getPropertyValue(prop); });
-        
+        ] as const;
+
+        styleProps.forEach(prop => {
+            const cssPropertyName = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+            const value = computed.getPropertyValue(cssPropertyName);
+            if (value) {
+                mirror.style.setProperty(cssPropertyName, value);
+            }
+        });
+
         mirror.style.position = 'absolute';
         mirror.style.visibility = 'hidden';
         mirror.style.whiteSpace = 'pre-wrap';
         mirror.style.wordWrap = 'break-word';
         mirror.style.left = '-9999px';
         mirror.style.top = '0px';
-        mirror.textContent = element.value.substring(0, caretPos ?? element.selectionStart);
-        
+        mirror.textContent = inputEl.value.substring(0, caretPos ?? inputEl.selectionStart);
+
         const marker = document.createElement('span');
         marker.textContent = '\u200b';
         mirror.appendChild(marker);
         document.body.appendChild(mirror);
-        
+
         const markerRect = marker.getBoundingClientRect();
         const mirrorRect = mirror.getBoundingClientRect();
-        
+
         left = mirrorRect.left + markerRect.left - mirrorRect.left - element.scrollLeft + window.scrollX;
         top = mirrorRect.top + markerRect.top - mirrorRect.top - element.scrollTop + window.scrollY;
         bottom = top + markerRect.height;
-        
+
         document.body.removeChild(mirror);
         return { left, top, bottom };
     }
@@ -782,7 +809,7 @@ function createFollowUpButton(text: string): void {
     // Add hover tracking
     toolbar.addEventListener('mouseenter', () => {
         enhancerState.set('followUp.isHoveringButton', true);
-        const timeout = enhancerState.get('followUp.stabilityTimeout');
+        const timeout = enhancerState.get<ReturnType<typeof setTimeout> | null>('followUp.stabilityTimeout');
         if (timeout) {
             clearTimeout(timeout);
             enhancerState.set('followUp.stabilityTimeout', null);
@@ -825,41 +852,43 @@ function createFollowUpButton(text: string): void {
  * Handle toolbar action button click
  */
 function handleToolbarAction(action: ToolbarAction, originalText: string): void {
-            const currentSelection = window.getSelection();
+    const currentSelection = window.getSelection();
     const currentText = currentSelection?.toString().trim();
 
     let textToUse = originalText;
-            if (currentText && isSelectionFromAIResponse(currentSelection)) {
-                textToUse = currentText;
-            }
+    if (currentText && isSelectionFromAIResponse(currentSelection)) {
+        textToUse = currentText;
+    }
 
-            const promptText = action.prompt.replace('{text}', textToUse);
+    const promptText = action.prompt.replace('{text}', textToUse);
 
-            setTimeout(() => {
+    setTimeout(() => {
         const inputBox = findGeminiInputBox() as HTMLElement | null;
-                if (inputBox) {
-                    // Clear and insert
-            (inputBox as any).value = '';
-                    inputBox.textContent = '';
+        if (inputBox) {
+            // Clear and insert
+            if (inputBox instanceof HTMLTextAreaElement || inputBox instanceof HTMLInputElement) {
+                inputBox.value = '';
+            }
+            inputBox.textContent = '';
 
-                    if (inputBox.tagName === 'TEXTAREA') {
+            if (inputBox.tagName === 'TEXTAREA') {
                 (inputBox as HTMLTextAreaElement).value = promptText;
-                    } else {
-                        inputBox.textContent = promptText;
-                    }
+            } else {
+                inputBox.textContent = promptText;
+            }
             inputBox.dispatchEvent(new Event('input', { bubbles: true }));
 
             // Focus and position cursor
-                    inputBox.focus();
+            inputBox.focus();
 
-            if ((inputBox as any).setSelectionRange) {
-                (inputBox as HTMLInputElement).setSelectionRange(promptText.length, promptText.length);
-                    } else if (window.getSelection) {
-                        const selection = window.getSelection();
+            if (inputBox instanceof HTMLTextAreaElement || inputBox instanceof HTMLInputElement) {
+                inputBox.setSelectionRange(promptText.length, promptText.length);
+            } else if (window.getSelection) {
+                const selection = window.getSelection();
                 selection?.removeAllRanges();
-                        const range = document.createRange();
-                        range.selectNodeContents(inputBox);
-                        range.collapse(false);
+                const range = document.createRange();
+                range.selectNodeContents(inputBox);
+                range.collapse(false);
                 selection?.addRange(range);
             }
 
@@ -869,10 +898,10 @@ function handleToolbarAction(action: ToolbarAction, originalText: string): void 
                 inputBox.dispatchEvent(new KeyboardEvent('keyup', { key: 'End', code: 'End', bubbles: true }));
             }, 10);
 
-                    enhancerState.emit('promptGenerated', { action: action.id, text: textToUse, prompt: promptText });
-                }
-                removeFollowUpButton();
-            }, 80);
+            enhancerState.emit('promptGenerated', { action: action.id, text: textToUse, prompt: promptText });
+        }
+        removeFollowUpButton();
+    }, 80);
 }
 
 /**
@@ -914,7 +943,7 @@ function positionToolbar(toolbar: HTMLElement): void {
  * Update the toolbar position based on current selection
  */
 function updateButtonPosition(): void {
-    const toolbar = enhancerState.get('followUp.button');
+    const toolbar = enhancerState.get<HTMLElement | null>('followUp.button');
     if (!toolbar || !toolbar.parentNode) return;
 
     positionToolbar(toolbar);
@@ -924,10 +953,10 @@ function updateButtonPosition(): void {
  * Remove the follow-up toolbar
  */
 function removeFollowUpButton(): void {
-    const toolbar = enhancerState.get('followUp.button');
+    const toolbar = enhancerState.get<HTMLElement | null>('followUp.button');
 
     if (toolbar) {
-        const stabilityTimeout = enhancerState.get('followUp.stabilityTimeout');
+        const stabilityTimeout = enhancerState.get<ReturnType<typeof setTimeout> | null>('followUp.stabilityTimeout');
         if (stabilityTimeout) {
             clearTimeout(stabilityTimeout);
             enhancerState.set('followUp.stabilityTimeout', null);
@@ -940,7 +969,7 @@ function removeFollowUpButton(): void {
         toolbar.style.transform = 'translateY(8px) scale(0.9)';
 
         setTimeout(() => {
-            const currentButton = enhancerState.get('followUp.button');
+            const currentButton = enhancerState.get<HTMLElement | null>('followUp.button');
             if (currentButton) {
                 currentButton.remove();
                 enhancerState.set('followUp.button', null);
@@ -1175,9 +1204,9 @@ function scrollIntoViewIfNeeded(element: Element | null): void {
 /**
  * Handle text selection events
  */
-function handleTextSelection(event: any): void {
-    if (!enhancerState.get('features.followUpEnabled') || isExcludedPath()) {
-        const existing = enhancerState.get('followUp.button');
+function handleTextSelection(event: Event): void {
+    if (!enhancerState.get<boolean>('features.followUpEnabled') || isExcludedPath()) {
+        const existing = enhancerState.get<HTMLElement | null>('followUp.button');
         if (existing) removeFollowUpButton();
         return;
     }
@@ -1188,10 +1217,10 @@ function handleTextSelection(event: any): void {
         try {
             const selection = window.getSelection();
             const selectedText = selection?.toString().trim() || '';
-            const toolbar = enhancerState.get('followUp.button');
+            const toolbar = enhancerState.get<HTMLElement | null>('followUp.button');
 
             // Ignore clicks on the toolbar itself
-            if (toolbar && event.target && (toolbar.contains(event.target) || toolbar === event.target)) {
+            if (toolbar && event.target instanceof Node && (toolbar.contains(event.target) || toolbar === event.target)) {
                 return;
             }
 
@@ -1220,7 +1249,7 @@ function handleTextSelection(event: any): void {
                     }
                 }
             } else {
-                if (toolbar && toolbar.parentNode && !enhancerState.get('followUp.isHoveringButton')) {
+                if (toolbar && toolbar.parentNode && !enhancerState.get<boolean>('followUp.isHoveringButton')) {
                     removeFollowUpButton();
                 }
             }
@@ -1234,7 +1263,7 @@ function handleTextSelection(event: any): void {
  * Handle mouse down events
  */
 function handleMouseDown(event: MouseEvent): void {
-    const toolbar = enhancerState.get('followUp.button');
+    const toolbar = enhancerState.get<HTMLElement | null>('followUp.button');
 
     if (toolbar?.contains(event.target as Node)) return;
 
@@ -1246,7 +1275,7 @@ function handleMouseDown(event: MouseEvent): void {
         );
 
         if (distance > 100) {
-            const stabilityTimeout = enhancerState.get('followUp.stabilityTimeout');
+            const stabilityTimeout = enhancerState.get<ReturnType<typeof setTimeout> | null>('followUp.stabilityTimeout');
             if (stabilityTimeout) {
                 clearTimeout(stabilityTimeout);
                 enhancerState.set('followUp.stabilityTimeout', null);
@@ -1261,7 +1290,8 @@ function handleMouseDown(event: MouseEvent): void {
  * Handle selection change events
  */
 function handleSelectionChange(): void {
-    handleTextSelection({ type: 'selectionchange', target: document.activeElement || document.body });
+    const syntheticEvent = new CustomEvent('selectionchange');
+    handleTextSelection(syntheticEvent);
 }
 
 /**
@@ -1276,9 +1306,10 @@ function handleKeyboardSelection(event: KeyboardEvent): void {
             const selection = window.getSelection();
             const selectedText = selection?.toString().trim() || '';
             const hasCJK = /[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(selectedText);
-            
+
             if (selectedText && (hasCJK ? selectedText.length >= 1 : selectedText.length >= 2)) {
-                handleTextSelection({ type: 'keyboardselection', target: document.activeElement || document.body });
+                const syntheticEvent = new CustomEvent('keyboardselection');
+                handleTextSelection(syntheticEvent);
             }
         }, 20);
     }
@@ -1288,9 +1319,9 @@ function handleKeyboardSelection(event: KeyboardEvent): void {
  * Handle scroll events to keep toolbar in sync
  */
 function handleAnyScroll(): void {
-    const btn = enhancerState.get('followUp.button');
+    const btn = enhancerState.get<HTMLElement | null>('followUp.button');
     if (!btn || isRepositionScheduled) return;
-    
+
     isRepositionScheduled = true;
     requestAnimationFrame(() => {
         isRepositionScheduled = false;
@@ -1304,7 +1335,7 @@ function handleAnyScroll(): void {
 function handleInputChange(event: Event): void {
     const target = event.target as HTMLElement;
 
-    if (!enhancerState.get('features.slashCommandsEnabled')) {
+    if (!enhancerState.get<boolean>('features.slashCommandsEnabled')) {
         if (commandAutocomplete?.style.display !== 'none') {
             hideCommandAutocomplete();
         }
@@ -1334,7 +1365,7 @@ function handleInputChange(event: Event): void {
  * Handle keydown events
  */
 function handleKeyDown(event: KeyboardEvent): void {
-    if (commandAutocomplete?.style.display !== 'none') {
+    if (commandAutocomplete && commandAutocomplete.style.display !== 'none') {
         const items = commandAutocomplete.querySelectorAll('.autocomplete-item');
         let selectedIndex = Array.from(items).findIndex(item => item.classList.contains('selected'));
 
@@ -1378,13 +1409,15 @@ function handleKeyDown(event: KeyboardEvent): void {
  * Handle keyup events
  */
 function handleKeyUp(event: KeyboardEvent): void {
-    if (event.target && isChatInputBox(event.target)) {
+    const target = event.target;
+    if (target && isChatInputBox(target)) {
+        const inputTarget = target as InputElement;
         setTimeout(() => {
-            const text = getInputText(event.target);
-            const cursorPos = getCursorPosition(event.target);
+            const text = getInputText(inputTarget);
+            const cursorPos = getCursorPosition(inputTarget);
             const beforeCursor = text.substring(0, cursorPos);
 
-            if (!beforeCursor.match(/\/(\w*)$/) && commandAutocomplete?.style.display !== 'none') {
+            if (!beforeCursor.match(/\/(\w*)$/) && commandAutocomplete && commandAutocomplete.style.display !== 'none') {
                 hideCommandAutocomplete();
             }
         }, 0);
@@ -1395,10 +1428,10 @@ function handleKeyUp(event: KeyboardEvent): void {
  * Handle focus out events
  */
 function handleFocusOut(event: FocusEvent): void {
-    if (commandAutocomplete?.style.display !== 'none') {
+    if (commandAutocomplete && commandAutocomplete.style.display !== 'none') {
         if (!event.relatedTarget || !commandAutocomplete.contains(event.relatedTarget as Node)) {
             setTimeout(() => {
-                if (commandAutocomplete?.style.display !== 'none') {
+                if (commandAutocomplete && commandAutocomplete.style.display !== 'none') {
                     hideCommandAutocomplete();
                 }
             }, 200);
@@ -1410,7 +1443,7 @@ function handleFocusOut(event: FocusEvent): void {
  * Handle document click events
  */
 function handleDocumentClick(event: MouseEvent): void {
-    if (commandAutocomplete?.style.display !== 'none') {
+    if (commandAutocomplete && commandAutocomplete.style.display !== 'none') {
         if (commandAutocomplete.contains(event.target as Node)) return;
         if (!isChatInputBox(event.target)) {
             hideCommandAutocomplete();
@@ -1458,11 +1491,11 @@ function initializeEventListeners(): void {
     // Viewport change handlers
     const onViewportChange = () => {
         try {
-            if (commandAutocomplete?.style.display === 'block' && enhancerState.get('slashCommands.lastInputBox')) {
-                positionAutocomplete(enhancerState.get('slashCommands.lastInputBox'));
+            if (commandAutocomplete?.style.display === 'block' && enhancerState.get<HTMLElement | null>('slashCommands.lastInputBox')) {
+                positionAutocomplete(enhancerState.get<HTMLElement>('slashCommands.lastInputBox'));
             }
             updateButtonPosition();
-        } catch (_) { /* noop */ }
+        } catch { /* noop */ }
     };
 
     window.addEventListener('resize', onViewportChange);
@@ -1483,16 +1516,16 @@ function initializeEventListeners(): void {
 /**
  * Handle messages from the popup
  */
-browserAPI.runtime.onMessage.addListener((message: any) => {
+browserAPI.runtime.onMessage.addListener((message: PopupMessage) => {
     if (message.type === 'UPDATE_WIDE_MODE') {
         applyWideMode(message.enabled, message.width);
     }
-    
+
     if (message.type === 'UPDATE_FOLLOW_UP') {
         enhancerState.set('features.followUpEnabled', message.enabled);
         if (!message.enabled) removeFollowUpButton();
     }
-    
+
     if (message.type === 'UPDATE_SLASH_COMMANDS') {
         enhancerState.set('features.slashCommandsEnabled', message.enabled);
         if (!message.enabled) hideCommandAutocomplete();
@@ -1502,18 +1535,18 @@ browserAPI.runtime.onMessage.addListener((message: any) => {
 /**
  * Handle storage changes
  */
-browserAPI.storage.onChanged.addListener((changes: any, namespace: string) => {
+browserAPI.storage.onChanged.addListener((changes: { [key: string]: chrome.storage.StorageChange }, namespace: string) => {
     if (namespace === 'sync') {
         if (changes.slashCommands) {
-            slashCommands = changes.slashCommands.newValue || {};
+            slashCommands = (changes.slashCommands.newValue as Record<string, string>) || {};
         }
-        
+
         if (changes.followUpEnabled !== undefined) {
             const enabled = changes.followUpEnabled.newValue !== false;
             enhancerState.set('features.followUpEnabled', enabled);
             if (!enabled) removeFollowUpButton();
         }
-        
+
         if (changes.slashCommandsEnabled !== undefined) {
             const enabled = changes.slashCommandsEnabled.newValue !== false;
             enhancerState.set('features.slashCommandsEnabled', enabled);
@@ -1531,7 +1564,7 @@ loadFeatureStates();
 loadSlashCommands();
 
 // Initialize wide mode
-browserAPI.storage.sync.get(['wideMode', 'wideModeWidth'], (result: any) => {
+browserAPI.storage.sync.get(['wideMode', 'wideModeWidth'], (result: StorageData) => {
     if (result.wideMode) {
         applyWideMode(true, result.wideModeWidth || DEFAULT_WIDE_MODE_WIDTH);
     }
@@ -1541,4 +1574,3 @@ browserAPI.storage.sync.get(['wideMode', 'wideModeWidth'], (result: any) => {
 initializeEventListeners();
 
 console.log('Gemini Enhancer initialized successfully');
-

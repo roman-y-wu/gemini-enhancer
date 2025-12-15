@@ -6,7 +6,7 @@
     "moduleResolution": "Bundler",
     "outDir": "dist",
     "rootDir": "src",
-    "strict": false,
+    "strict": true,
     "skipLibCheck": true,
     "noEmitOnError": false,
     "allowJs": false,
