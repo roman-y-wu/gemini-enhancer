@@ -1,7 +1,7 @@
 // Popup script for managing slash commands
 
-// Make this file a module to avoid global scope conflicts
-export {};
+// Wrap in an IIFE to avoid polluting the global scope (popup scripts are not ES modules)
+(() => {
 
 // Safari compatibility: Use browser API if available, fallback to chrome
 const browserAPI: typeof chrome = typeof browser !== 'undefined' ? browser : chrome;
@@ -338,3 +338,5 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     }
 });
+
+})();

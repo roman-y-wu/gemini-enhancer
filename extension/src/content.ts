@@ -7,8 +7,8 @@
  * - Wide mode for expanded conversation width
  */
 
-// Make this file a module to avoid global scope conflicts
-export {};
+// Wrap in an IIFE to avoid polluting the global scope (content scripts are not ES modules)
+(() => {
 
 console.log('Gemini Enhancer content script loaded.');
 
@@ -1574,3 +1574,5 @@ browserAPI.storage.sync.get(['wideMode', 'wideModeWidth'], (result: StorageData)
 initializeEventListeners();
 
 console.log('Gemini Enhancer initialized successfully');
+
+})();
