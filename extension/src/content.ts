@@ -144,9 +144,9 @@ const TOOLBAR_ICONS = {
 
 /** Toolbar action definitions */
 const TOOLBAR_ACTIONS: ToolbarAction[] = [
-    { id: 'askAbout', label: 'Ask', icon: TOOLBAR_ICONS.ask, prompt: '```\n{text}\n```\n\n\n' },
-    { id: 'explainFurther', label: 'Explain', icon: TOOLBAR_ICONS.explain, prompt: '```\n{text}\n```\n\nExplain this section to me in more detail' },
-    { id: 'giveExamples', label: 'Examples', icon: TOOLBAR_ICONS.examples, prompt: '```\n{text}\n```\n\nCan you give me some examples related to the above section.' }
+    { id: 'askAbout', label: 'Ask', icon: TOOLBAR_ICONS.ask, prompt: '```\n{text}\n```\n' },
+    { id: 'explainFurther', label: 'Explain', icon: TOOLBAR_ICONS.explain, prompt: '```\n{text}\n```\nExplain this section to me in more detail' },
+    { id: 'giveExamples', label: 'Examples', icon: TOOLBAR_ICONS.examples, prompt: '```\n{text}\n```\nCan you give me some examples related to the above section.' }
 ];
 
 /** Default slash commands */
