@@ -581,6 +581,11 @@ function setCursorPosition(element: InputElement, position: number): void {
             range.setEnd(textNode, position - currentPos);
             sel?.removeAllRanges();
             sel?.addRange(range);
+        } else {
+            range.selectNodeContents(element);
+            range.collapse(false);
+            sel?.removeAllRanges();
+            sel?.addRange(range);
         }
     }
 }
@@ -863,40 +868,33 @@ function handleToolbarAction(action: ToolbarAction, originalText: string): void 
     const promptText = action.prompt.replace('{text}', textToUse);
 
     setTimeout(() => {
-        const inputBox = findGeminiInputBox() as HTMLElement | null;
+        const inputBox = findGeminiInputBox() as InputElement | null;
         if (inputBox) {
-            // Clear and insert
-            if (inputBox instanceof HTMLTextAreaElement || inputBox instanceof HTMLInputElement) {
-                inputBox.value = '';
-            }
-            inputBox.textContent = '';
-
-            if (inputBox.tagName === 'TEXTAREA') {
-                (inputBox as HTMLTextAreaElement).value = promptText;
+            const isTextInput = inputBox instanceof HTMLTextAreaElement || inputBox instanceof HTMLInputElement;
+            if (isTextInput) {
+                const inputEl = inputBox as HTMLTextAreaElement | HTMLInputElement;
+                if (typeof inputEl.setRangeText === 'function') {
+                    const endPos = inputEl.value.length;
+                    inputEl.setRangeText(promptText, 0, endPos, 'end');
+                } else {
+                    inputEl.value = promptText;
+                    inputEl.setSelectionRange(promptText.length, promptText.length);
+                }
+                inputEl.dispatchEvent(new Event('input', { bubbles: true }));
             } else {
-                inputBox.textContent = promptText;
-            }
-            inputBox.dispatchEvent(new Event('input', { bubbles: true }));
-
-            // Focus and position cursor
-            inputBox.focus();
-
-            if (inputBox instanceof HTMLTextAreaElement || inputBox instanceof HTMLInputElement) {
-                inputBox.setSelectionRange(promptText.length, promptText.length);
-            } else if (window.getSelection) {
-                const selection = window.getSelection();
-                selection?.removeAllRanges();
-                const range = document.createRange();
-                range.selectNodeContents(inputBox);
-                range.collapse(false);
-                selection?.addRange(range);
+                setInputText(inputBox, promptText);
+                // Keep the caret at the end before focus to avoid IME disruption.
+                setCursorPosition(inputBox, promptText.length);
             }
 
-            // Fix for CJK IME issue
-            setTimeout(() => {
-                inputBox.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', code: 'End', bubbles: true }));
-                inputBox.dispatchEvent(new KeyboardEvent('keyup', { key: 'End', code: 'End', bubbles: true }));
-            }, 10);
+            const focusTarget = inputBox as HTMLElement;
+            if (typeof focusTarget.focus === 'function') {
+                try {
+                    focusTarget.focus({ preventScroll: true });
+                } catch {
+                    focusTarget.focus();
+                }
+            }
 
             enhancerState.emit('promptGenerated', { action: action.id, text: textToUse, prompt: promptText });
         }
