@@ -144,7 +144,7 @@ const TOOLBAR_ICONS = {
 
 /** Toolbar action definitions */
 const TOOLBAR_ACTIONS: ToolbarAction[] = [
-    { id: 'askAbout', label: 'Ask', icon: TOOLBAR_ICONS.ask, prompt: '```\n{text}\n```\n' },
+    { id: 'askAbout', label: 'Ask', icon: TOOLBAR_ICONS.ask, prompt: '```\n{text}\n```' },
     { id: 'explainFurther', label: 'Explain', icon: TOOLBAR_ICONS.explain, prompt: '```\n{text}\n```\nExplain this section to me in more detail' },
     { id: 'giveExamples', label: 'Examples', icon: TOOLBAR_ICONS.examples, prompt: '```\n{text}\n```\nCan you give me some examples related to the above section.' }
 ];
@@ -551,8 +551,34 @@ function setInputText(element: InputElement, text: string): void {
         (element as HTMLTextAreaElement | HTMLInputElement).value = text;
         element.dispatchEvent(new Event('input', { bubbles: true }));
     } else if (element.hasAttribute?.('contenteditable')) {
-        (element as HTMLElement).innerText = text;
-        element.dispatchEvent(new Event('input', { bubbles: true }));
+        const htmlElement = element as HTMLElement;
+        
+        // Focus the element first
+        htmlElement.focus();
+        
+        // Select all existing content
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(htmlElement);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        
+        // Use execCommand to insert text (works better with contenteditable)
+        // This properly handles the undo stack and framework bindings
+        const success = document.execCommand('insertText', false, text);
+        
+        if (!success) {
+            // Fallback: use textContent (simpler than innerHTML manipulation)
+            htmlElement.textContent = text;
+        }
+        
+        // Dispatch input event for any framework listeners
+        element.dispatchEvent(new InputEvent('input', { 
+            bubbles: true, 
+            cancelable: true,
+            inputType: 'insertText',
+            data: text
+        }));
     }
 }
 
@@ -854,6 +880,29 @@ function createFollowUpButton(text: string): void {
 }
 
 /**
+ * Normalize text by collapsing multiple consecutive newlines and trimming whitespace
+ */
+function normalizeText(text: string): string {
+    return text
+        // Normalize line endings to \n
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        // Remove zero-width characters that might be copied from web content
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        // Collapse multiple spaces/tabs into single space
+        .replace(/[ \t]+/g, ' ')
+        // Remove spaces at the beginning and end of each line
+        .replace(/^ +| +$/gm, '')
+        // Collapse multiple consecutive newlines (including those with only whitespace) into single newlines
+        .replace(/\n\s*\n/g, '\n')
+        .replace(/\n{2,}/g, '\n')
+        // Remove leading/trailing newlines specifically (trim only handles whitespace)
+        .replace(/^\n+|\n+$/g, '')
+        // Trim any remaining leading/trailing whitespace
+        .trim();
+}
+
+/**
  * Handle toolbar action button click
  */
 function handleToolbarAction(action: ToolbarAction, originalText: string): void {
@@ -864,6 +913,9 @@ function handleToolbarAction(action: ToolbarAction, originalText: string): void 
     if (currentText && isSelectionFromAIResponse(currentSelection)) {
         textToUse = currentText;
     }
+
+    // Normalize the text to remove extra newlines
+    textToUse = normalizeText(textToUse);
 
     const promptText = action.prompt.replace('{text}', textToUse);
 
