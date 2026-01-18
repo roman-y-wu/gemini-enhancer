@@ -1,20 +1,6 @@
 {
-  "name": "extension",
-  "version": "1.0.0",
-  "description": "",
-  "main": "dist/content.js",
-  "scripts": {
-    "prebuild": "rm -rf dist",
-    "build": "tsc",
-    "postbuild": "cp manifest.json dist/ && cp popup.html dist/ && cp styles.css dist/",
-    "watch": "tsc -w"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
-  "devDependencies": {
-    "@types/chrome": "^0.1.6",
-    "typescript": "^5.9.2"
-  }
+  "name": "gemini-enhancer",
+  "version": "1.7.1",
+  "description": "Chrome extension to enhance Gemini with follow-up toolbar and slash commands",
+  "private": true
 }

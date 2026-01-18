@@ -4,19 +4,19 @@
 (() => {
 
 // Safari compatibility: Use browser API if available, fallback to chrome
-const browserAPI: typeof chrome = typeof browser !== 'undefined' ? browser : chrome;
+const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
 document.addEventListener('DOMContentLoaded', async function () {
-    const commandsList = document.getElementById('commandsList') as HTMLElement;
-    const addCommandBtn = document.getElementById('addCommand') as HTMLElement;
-    const triggerInput = document.getElementById('commandTrigger') as HTMLInputElement;
-    const promptInput = document.getElementById('commandPrompt') as HTMLTextAreaElement;
-    const exportBtn = document.getElementById('exportCommands') as HTMLElement;
-    const importBtn = document.getElementById('importCommands') as HTMLElement;
-    const importFile = document.getElementById('importFile') as HTMLInputElement;
+    const commandsList = document.getElementById('commandsList');
+    const addCommandBtn = document.getElementById('addCommand');
+    const triggerInput = document.getElementById('commandTrigger');
+    const promptInput = document.getElementById('commandPrompt');
+    const exportBtn = document.getElementById('exportCommands');
+    const importBtn = document.getElementById('importCommands');
+    const importFile = document.getElementById('importFile');
 
     // Track editing state
-    let editingKey: string | null = null;
+    let editingKey = null;
 
 
     // Load and display existing commands
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Export/import
     exportBtn.addEventListener('click', async () => {
         try {
-            const result = await browserAPI.storage.sync.get(['slashCommands']) as StorageData;
+            const result = await browserAPI.storage.sync.get(['slashCommands']);
             const commands = result.slashCommands || {};
             const json = JSON.stringify(commands, null, 2);
             await navigator.clipboard.writeText(json);
@@ -49,14 +49,13 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
     importBtn.addEventListener('click', () => importFile.click());
     importFile.addEventListener('change', async (e) => {
-        const target = e.target as HTMLInputElement;
-        const file = target.files && target.files[0];
+        const file = e.target.files && e.target.files[0];
         if (!file) return;
         try {
             const text = await file.text();
-            const parsed = JSON.parse(text) as Record<string, string>;
+            const parsed = JSON.parse(text);
             if (!parsed || typeof parsed !== 'object') throw new Error('Invalid JSON');
-            const result = await browserAPI.storage.sync.get(['slashCommands']) as StorageData;
+            const result = await browserAPI.storage.sync.get(['slashCommands']);
             const existing = result.slashCommands || {};
             const merged = { ...existing, ...parsed };
             await browserAPI.storage.sync.set({ slashCommands: merged });
@@ -71,9 +70,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
 
-    async function loadCommands(): Promise<void> {
+    async function loadCommands() {
         try {
-            const result = await browserAPI.storage.sync.get(['slashCommands']) as StorageData;
+            const result = await browserAPI.storage.sync.get(['slashCommands']);
             const commands = result.slashCommands || {};
 
             displayCommands(commands);
@@ -82,7 +81,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     }
 
-    function displayCommands(commands: Record<string, string>): void {
+    function displayCommands(commands) {
         const commandsArray = Object.entries(commands);
 
         if (commandsArray.length === 0) {
@@ -106,18 +105,17 @@ document.addEventListener('DOMContentLoaded', async function () {
         `).join('');
 
         // Add event listeners
-        commandsList.querySelectorAll('.action-btn').forEach((btn: Element) => {
-            const htmlBtn = btn as HTMLElement;
-            if (htmlBtn.dataset.trigger) {
-                htmlBtn.addEventListener('click', () => deleteCommand(htmlBtn.dataset.trigger!));
+        commandsList.querySelectorAll('.action-btn').forEach((btn) => {
+            if (btn.dataset.trigger) {
+                btn.addEventListener('click', () => deleteCommand(btn.dataset.trigger));
             }
-            if (htmlBtn.dataset.edit) {
-                htmlBtn.addEventListener('click', () => startEditCommand(htmlBtn.dataset.edit!));
+            if (btn.dataset.edit) {
+                btn.addEventListener('click', () => startEditCommand(btn.dataset.edit));
             }
         });
     }
 
-    async function addOrUpdateCommand(): Promise<void> {
+    async function addOrUpdateCommand() {
         const trigger = triggerInput.value.trim().toLowerCase();
         const prompt = promptInput.value.trim();
 
@@ -133,8 +131,8 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
 
         try {
-            const result = await browserAPI.storage.sync.get(['slashCommands']) as StorageData;
-            const commands: Record<string, string> = result.slashCommands || {};
+            const result = await browserAPI.storage.sync.get(['slashCommands']);
+            const commands = result.slashCommands || {};
 
             let isUpdate = false;
             if (editingKey && editingKey !== trigger) {
@@ -165,27 +163,26 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     }
 
-    function startEditCommand(trigger: string): void {
+    function startEditCommand(trigger) {
         // Prefill form and switch button label
         triggerInput.value = trigger;
         triggerInput.focus();
         browserAPI.storage.sync.get(['slashCommands']).then((result) => {
-            const data = result as StorageData;
-            const commands = data.slashCommands || {};
+            const commands = result.slashCommands || {};
             promptInput.value = commands[trigger] || '';
         });
         editingKey = trigger;
         addCommandBtn.textContent = 'Save Changes';
     }
 
-    async function deleteCommand(trigger: string): Promise<void> {
+    async function deleteCommand(trigger) {
         if (!confirm(`Delete command /${trigger}?`)) {
             return;
         }
 
         try {
-            const result = await browserAPI.storage.sync.get(['slashCommands']) as StorageData;
-            const commands: Record<string, string> = result.slashCommands || {};
+            const result = await browserAPI.storage.sync.get(['slashCommands']);
+            const commands = result.slashCommands || {};
 
             delete commands[trigger];
 
@@ -203,7 +200,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     }
 
-    function showNotification(message: string, type: 'info' | 'error' | 'success' = 'info'): void {
+    function showNotification(message, type = 'info') {
         // Remove any existing notification
         const existingNotification = document.querySelector('.notification');
         if (existingNotification) {
@@ -225,27 +222,26 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     // Feature Toggle Elements
-    const followUpToggle = document.getElementById('followUpToggle') as HTMLInputElement;
-    const slashCommandsToggle = document.getElementById('slashCommandsToggle') as HTMLInputElement;
-    const wideModeToggle = document.getElementById('wideModeToggle') as HTMLInputElement;
-    const widthControl = document.getElementById('widthControl') as HTMLElement;
-    const widthSlider = document.getElementById('widthSlider') as HTMLInputElement;
-    const widthValue = document.getElementById('widthValue') as HTMLElement;
+    const followUpToggle = document.getElementById('followUpToggle');
+    const slashCommandsToggle = document.getElementById('slashCommandsToggle');
+    const wideModeToggle = document.getElementById('wideModeToggle');
+    const widthControl = document.getElementById('widthControl');
+    const widthSlider = document.getElementById('widthSlider');
+    const widthValue = document.getElementById('widthValue');
 
     // Load all saved settings
     browserAPI.storage.sync.get(['followUpEnabled', 'slashCommandsEnabled', 'wideMode', 'wideModeWidth'], (result) => {
-        const data = result as StorageData;
         // Follow-up buttons (default: enabled)
-        const followUpEnabled = data.followUpEnabled !== false;
+        const followUpEnabled = result.followUpEnabled !== false;
         if (followUpToggle) followUpToggle.checked = followUpEnabled;
 
         // Slash commands (default: enabled)
-        const slashCommandsEnabled = data.slashCommandsEnabled !== false;
+        const slashCommandsEnabled = result.slashCommandsEnabled !== false;
         if (slashCommandsToggle) slashCommandsToggle.checked = slashCommandsEnabled;
 
         // Wide mode
-        const wideEnabled = data.wideMode || false;
-        const width = data.wideModeWidth || 1000;
+        const wideEnabled = result.wideMode || false;
+        const width = result.wideModeWidth || 1000;
 
         if (wideModeToggle) wideModeToggle.checked = wideEnabled;
         if (widthSlider) widthSlider.value = width.toString();
@@ -328,8 +324,8 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     }
 
-    function sendMessageToActiveTab(message: PopupMessage): void {
-        browserAPI.tabs.query({ active: true, currentWindow: true }, (tabs: chrome.tabs.Tab[]) => {
+    function sendMessageToActiveTab(message) {
+        browserAPI.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0]?.id) {
                 browserAPI.tabs.sendMessage(tabs[0].id, message).catch(() => {
                     // Ignore errors if content script isn't ready

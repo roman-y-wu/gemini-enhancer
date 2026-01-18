@@ -25,74 +25,11 @@
     }
 
     // ============================================================================
-    // TYPE DEFINITIONS
-    // ============================================================================
-
-    interface FeatureState {
-        followUpEnabled: boolean;
-        slashCommandsEnabled: boolean;
-        wideModeEnabled: boolean;
-    }
-
-    interface FollowUpState {
-        button: HTMLElement | null;
-        selectedText: string;
-        stabilityTimeout: ReturnType<typeof setTimeout> | null;
-        isHoveringButton: boolean;
-        selectionTimeout: ReturnType<typeof setTimeout> | null;
-    }
-
-    interface SlashCommandsState {
-        commands: Record<string, string>;
-        autocomplete: HTMLElement | null;
-        lastInputBox: HTMLElement | null;
-        isActive: boolean;
-    }
-
-    interface UIState {
-        actionBar: HTMLElement | null;
-        activeFeature: string | null;
-    }
-
-    interface ObserversState {
-        mutation: MutationObserver | null;
-        input: Set<HTMLElement>;
-        resize: ResizeObserver | null;
-    }
-
-    interface EnhancerStateData {
-        features: FeatureState;
-        followUp: FollowUpState;
-        slashCommands: SlashCommandsState;
-        ui: UIState;
-        observers: ObserversState;
-    }
-
-    interface ToolbarAction {
-        id: string;
-        label: string;
-        icon: string;
-        prompt: string;
-    }
-
-    interface SelectionRect {
-        top: number;
-        left: number;
-        right: number;
-        bottom: number;
-        width: number;
-        height: number;
-    }
-
-    /** Input element type that can be a textarea, input, or contenteditable element */
-    type InputElement = HTMLTextAreaElement | HTMLInputElement | HTMLElement;
-
-    // ============================================================================
     // CONSTANTS & CONFIGURATION
     // ============================================================================
 
     /** Browser API for cross-browser compatibility (Chrome/Safari) */
-    const browserAPI: typeof chrome = typeof browser !== 'undefined' ? browser : chrome;
+    const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
     /** Default width for wide mode */
     const DEFAULT_WIDE_MODE_WIDTH = 1000;
@@ -143,14 +80,14 @@
     };
 
     /** Toolbar action definitions */
-    const TOOLBAR_ACTIONS: ToolbarAction[] = [
+    const TOOLBAR_ACTIONS = [
         { id: 'askAbout', label: 'Ask', icon: TOOLBAR_ICONS.ask, prompt: '```\n{text}\n```' },
         { id: 'explainFurther', label: 'Explain', icon: TOOLBAR_ICONS.explain, prompt: '```\n{text}\n```\nExplain this section to me in more detail' },
         { id: 'giveExamples', label: 'Examples', icon: TOOLBAR_ICONS.examples, prompt: '```\n{text}\n```\nCan you give me some examples related to the above section.' }
     ];
 
     /** Default slash commands */
-    const DEFAULT_SLASH_COMMANDS: Record<string, string> = {
+    const DEFAULT_SLASH_COMMANDS = {
         'translate': 'Translate the following text to English: {text}',
         'explain': 'Explain this concept in simple terms: {text}',
         'improve': 'Improve the writing and clarity of this text: {text}',
@@ -165,10 +102,10 @@
     // GLOBAL STATE VARIABLES
     // ============================================================================
 
-    let slashCommands: Record<string, string> = {};
-    let commandAutocomplete: HTMLElement | null = null;
-    let lastInputBox: HTMLElement | null = null;
-    let selectionTimeout: ReturnType<typeof setTimeout> | null = null;
+    let slashCommands = {};
+    let commandAutocomplete = null;
+    let lastInputBox = null;
+    let selectionTimeout = null;
     let isRepositionScheduled = false;
 
     // ============================================================================
@@ -179,11 +116,6 @@
      * Centralized state management system for the enhancer
      */
     class EnhancerState {
-        state: EnhancerStateData;
-        cleanup: Set<() => void>;
-        eventBus: EventTarget;
-        initialized: boolean;
-
         constructor() {
             this.state = {
                 features: {
@@ -221,25 +153,25 @@
         }
 
         /** Get a value from state using dot notation path */
-        get<T = unknown>(path: string): T {
-            return path.split('.').reduce<unknown>((obj, key) => {
+        get(path) {
+            return path.split('.').reduce((obj, key) => {
                 if (obj && typeof obj === 'object' && key in obj) {
-                    return (obj as Record<string, unknown>)[key];
+                    return obj[key];
                 }
                 return undefined;
-            }, this.state as unknown) as T;
+            }, this.state);
         }
 
         /** Set a value in state using dot notation path */
-        set(path: string, value: unknown): void {
+        set(path, value) {
             const keys = path.split('.');
-            const lastKey = keys.pop()!;
-            const target = keys.reduce<Record<string, unknown>>((obj, key) => {
+            const lastKey = keys.pop();
+            const target = keys.reduce((obj, key) => {
                 if (!(key in obj)) {
                     obj[key] = {};
                 }
-                return obj[key] as Record<string, unknown>;
-            }, this.state as unknown as Record<string, unknown>);
+                return obj[key];
+            }, this.state);
             const oldValue = target[lastKey];
             target[lastKey] = value;
 
@@ -249,22 +181,22 @@
         }
 
         /** Subscribe to an event */
-        on(event: string, callback: EventListener): void {
+        on(event, callback) {
             this.eventBus.addEventListener(event, callback);
         }
 
         /** Emit a custom event */
-        emit(event: string, data: Record<string, unknown>): void {
+        emit(event, data) {
             this.eventBus.dispatchEvent(new CustomEvent(event, { detail: data }));
         }
 
         /** Register a cleanup function */
-        addCleanup(cleanupFn: () => void): void {
+        addCleanup(cleanupFn) {
             this.cleanup.add(cleanupFn);
         }
 
         /** Clean up all resources */
-        destroy(): void {
+        destroy() {
             this.cleanup.forEach(fn => {
                 try { fn(); } catch (e) { console.warn('Cleanup function failed:', e); }
             });
@@ -278,9 +210,6 @@
      * Event coordination system for managing feature priorities and UI conflicts
      */
     class EventCoordinator {
-        activeFeatures: Set<string>;
-        featurePriority: Record<string, number>;
-
         constructor() {
             this.activeFeatures = new Set();
             this.featurePriority = {
@@ -291,24 +220,24 @@
         }
 
         /** Activate a feature */
-        activateFeature(featureName: string, data: Record<string, unknown> = {}): void {
+        activateFeature(featureName, data = {}) {
             this.activeFeatures.add(featureName);
             enhancerState.set('ui.activeFeature', featureName);
             enhancerState.emit('featureActivated', { feature: featureName, data });
         }
 
         /** Deactivate a feature */
-        deactivateFeature(featureName: string): void {
+        deactivateFeature(featureName) {
             this.activeFeatures.delete(featureName);
-            if (enhancerState.get<string | null>('ui.activeFeature') === featureName) {
+            if (enhancerState.get('ui.activeFeature') === featureName) {
                 enhancerState.set('ui.activeFeature', null);
             }
             enhancerState.emit('featureDeactivated', { feature: featureName });
         }
 
         /** Check if a feature can be activated based on priority */
-        canActivateFeature(featureName: string): boolean {
-            const currentFeature = enhancerState.get<string | null>('ui.activeFeature');
+        canActivateFeature(featureName) {
+            const currentFeature = enhancerState.get('ui.activeFeature');
             if (!currentFeature) return true;
 
             const currentPriority = this.featurePriority[currentFeature] || 0;
@@ -329,7 +258,7 @@
     /**
      * Show a toast notification
      */
-    function showToast(message: string, type: 'info' | 'error' | 'success' = 'info'): void {
+    function showToast(message, type = 'info') {
         try {
             const existing = document.querySelector('.ge-toast');
             if (existing) existing.remove();
@@ -351,7 +280,7 @@
     /**
      * Check if current path should be excluded from the extension
      */
-    function isExcludedPath(): boolean {
+    function isExcludedPath() {
         const pathname = window.location.pathname;
         return pathname === '/scheduled' || pathname === '/apps';
     }
@@ -359,13 +288,13 @@
     /**
      * Get a bounding rectangle for the current selection
      */
-    function getSelectionBoundingRect(range: Range | null): SelectionRect | DOMRect | null {
+    function getSelectionBoundingRect(range) {
         try {
             if (!range) return null;
             const rect = range.getBoundingClientRect();
             if (rect && rect.width > 0 && rect.height > 0) return rect;
 
-            const rects = Array.from(range.getClientRects?.() || []) as DOMRect[];
+            const rects = Array.from(range.getClientRects?.() || []);
             const visible = rects.filter(r => r.width > 0 && r.height > 0);
             if (visible.length === 0) return null;
 
@@ -383,7 +312,7 @@
     /**
      * Check if the current selection is within an AI response area
      */
-    function isSelectionFromAIResponse(selection: Selection | null): boolean {
+    function isSelectionFromAIResponse(selection) {
         if (!selection || selection.rangeCount === 0) return false;
 
         const selectedText = selection.toString().trim();
@@ -396,10 +325,10 @@
 
         const range = selection.getRangeAt(0);
         const container = range.commonAncestorContainer;
-        let element = (container.nodeType === Node.TEXT_NODE ? container.parentElement : container) as HTMLElement;
+        let element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
 
         // Check if selection is within input/editable areas (block these)
-        let currentElement: HTMLElement | null = element;
+        let currentElement = element;
         while (currentElement && currentElement !== document.body) {
             const tagName = currentElement.tagName?.toLowerCase();
             const isEditable = currentElement.contentEditable === 'true' || currentElement.contentEditable === '';
@@ -427,13 +356,13 @@
 
         // Method 2: Check class names and data attributes
         if (!isInAIResponse) {
-            let checkElement: HTMLElement | null = element;
+            let checkElement = element;
             while (checkElement && checkElement !== document.body) {
                 const className = checkElement.className || '';
                 const classList = typeof className === 'string' ? className.toLowerCase() : '';
                 const dataAttrs = Array.from(checkElement.attributes || [])
-                    .filter((attr: Attr) => attr.name.startsWith('data-'))
-                    .map((attr: Attr) => `${attr.name}=${attr.value}`)
+                    .filter(attr => attr.name.startsWith('data-'))
+                    .map(attr => `${attr.name}=${attr.value}`)
                     .join(' ')
                     .toLowerCase();
 
@@ -468,12 +397,12 @@
     /**
      * Find the Gemini input box
      */
-    function findGeminiInputBox(): Element | null {
+    function findGeminiInputBox() {
         for (const selector of INPUT_BOX_SELECTORS) {
             const elem = document.querySelector(selector);
-            if (elem && (elem as HTMLElement).offsetParent !== null &&
-                (elem as HTMLElement).offsetHeight > 0 && (elem as HTMLElement).offsetWidth > 0) {
-                const rect = (elem as HTMLElement).getBoundingClientRect();
+            if (elem && elem.offsetParent !== null &&
+                elem.offsetHeight > 0 && elem.offsetWidth > 0) {
+                const rect = elem.getBoundingClientRect();
                 if (rect.top > window.innerHeight / 2) {
                     return elem;
                 }
@@ -485,7 +414,7 @@
     /**
      * Check if an element is a chat input box
      */
-    function isChatInputBox(element: EventTarget | null): element is InputElement {
+    function isChatInputBox(element) {
         if (!element || !(element instanceof Element)) return false;
 
         const hostname = window.location.hostname;
@@ -510,12 +439,12 @@
     /**
      * Get text content from an input element
      */
-    function getInputText(element: InputElement): string {
+    function getInputText(element) {
         const tagName = element.tagName?.toLowerCase();
         if (tagName === 'textarea' || tagName === 'input') {
-            return (element as HTMLTextAreaElement | HTMLInputElement).value || '';
+            return element.value || '';
         } else if (element.hasAttribute?.('contenteditable')) {
-            return (element as HTMLElement).innerText || element.textContent || '';
+            return element.innerText || element.textContent || '';
         }
         return '';
     }
@@ -523,10 +452,10 @@
     /**
      * Get cursor position in an input element
      */
-    function getCursorPosition(element: InputElement): number {
+    function getCursorPosition(element) {
         const tagName = element.tagName?.toLowerCase();
         if (tagName === 'textarea' || tagName === 'input') {
-            return (element as HTMLTextAreaElement | HTMLInputElement).selectionStart || 0;
+            return element.selectionStart || 0;
         } else if (element.hasAttribute?.('contenteditable')) {
             const sel = window.getSelection();
             if (sel && sel.rangeCount > 0) {
@@ -545,21 +474,19 @@
     /**
      * Set text content of an input element
      */
-    function setInputText(element: InputElement, text: string): void {
+    function setInputText(element, text) {
         const tagName = element.tagName?.toLowerCase();
         if (tagName === 'textarea' || tagName === 'input') {
-            (element as HTMLTextAreaElement | HTMLInputElement).value = text;
+            element.value = text;
             element.dispatchEvent(new Event('input', { bubbles: true }));
         } else if (element.hasAttribute?.('contenteditable')) {
-            const htmlElement = element as HTMLElement;
-
             // Focus the element first
-            htmlElement.focus();
+            element.focus();
 
             // Select all existing content
             const selection = window.getSelection();
             const range = document.createRange();
-            range.selectNodeContents(htmlElement);
+            range.selectNodeContents(element);
             selection?.removeAllRanges();
             selection?.addRange(range);
 
@@ -569,13 +496,13 @@
 
             if (!success) {
                 // Fallback: use textContent (simpler than innerHTML manipulation)
-                htmlElement.textContent = text;
+                element.textContent = text;
             }
 
             // Move cursor to end of content - important for slash command detection
             // Create a new range that points to the end of the content
             const endRange = document.createRange();
-            endRange.selectNodeContents(htmlElement);
+            endRange.selectNodeContents(element);
             endRange.collapse(false); // Collapse to end
             selection?.removeAllRanges();
             selection?.addRange(endRange);
@@ -593,10 +520,10 @@
     /**
      * Set cursor position in an input element
      */
-    function setCursorPosition(element: InputElement, position: number): void {
+    function setCursorPosition(element, position) {
         const tagName = element.tagName?.toLowerCase();
         if (tagName === 'textarea' || tagName === 'input') {
-            (element as HTMLTextAreaElement | HTMLInputElement).setSelectionRange(position, position);
+            element.setSelectionRange(position, position);
         } else if (element.hasAttribute?.('contenteditable')) {
             const range = document.createRange();
             const sel = window.getSelection();
@@ -627,7 +554,7 @@
     /**
      * Get caret coordinates in a textarea or contenteditable element
      */
-    function getCaretCoordinates(element: InputElement, caretPos: number): { left: number; top: number; bottom: number } | null {
+    function getCaretCoordinates(element, caretPos) {
         if (!element) return null;
 
         const rect = element.getBoundingClientRect();
@@ -636,7 +563,6 @@
 
         // For textarea/input
         if (tagName === 'textarea' || tagName === 'input') {
-            const inputEl = element as HTMLTextAreaElement | HTMLInputElement;
             const mirror = document.createElement('div');
             const computed = getComputedStyle(element);
 
@@ -647,7 +573,7 @@
                 'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize',
                 'lineHeight', 'fontFamily', 'textAlign', 'textTransform', 'textIndent',
                 'letterSpacing', 'wordSpacing'
-            ] as const;
+            ];
 
             styleProps.forEach(prop => {
                 const cssPropertyName = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
@@ -663,7 +589,7 @@
             mirror.style.wordWrap = 'break-word';
             mirror.style.left = '-9999px';
             mirror.style.top = '0px';
-            mirror.textContent = inputEl.value.substring(0, caretPos ?? inputEl.selectionStart);
+            mirror.textContent = element.value.substring(0, caretPos ?? element.selectionStart);
 
             const marker = document.createElement('span');
             marker.textContent = '\u200b';
@@ -704,7 +630,7 @@
     /**
      * Load feature states from storage
      */
-    async function loadFeatureStates(): Promise<void> {
+    async function loadFeatureStates() {
         try {
             const result = await browserAPI.storage.sync.get(['followUpEnabled', 'slashCommandsEnabled']);
 
@@ -723,7 +649,7 @@
     /**
      * Load slash commands from storage
      */
-    async function loadSlashCommands(): Promise<void> {
+    async function loadSlashCommands() {
         try {
             const result = await browserAPI.storage.sync.get(['slashCommands']);
             slashCommands = result.slashCommands || {};
@@ -751,7 +677,7 @@
     /**
      * Apply or remove wide mode styles
      */
-    function applyWideMode(enabled: boolean, width: number): void {
+    function applyWideMode(enabled, width) {
         const styleId = 'gemini-enhancer-wide-mode';
         let styleEl = document.getElementById(styleId);
 
@@ -767,7 +693,7 @@
         }
 
         styleEl.textContent = `
-        .conversation-container, 
+        .conversation-container,
         .input-area-container,
         main > div > div,
         [role="main"] > div > div,
@@ -789,7 +715,7 @@
     /**
      * Create the follow-up toolbar for selected text
      */
-    function createFollowUpButton(text: string): void {
+    function createFollowUpButton(text) {
         if (!eventCoordinator.canActivateFeature('follow-up')) return;
 
         const toolbar = document.createElement('div');
@@ -848,7 +774,7 @@
         // Add hover tracking
         toolbar.addEventListener('mouseenter', () => {
             enhancerState.set('followUp.isHoveringButton', true);
-            const timeout = enhancerState.get<ReturnType<typeof setTimeout> | null>('followUp.stabilityTimeout');
+            const timeout = enhancerState.get('followUp.stabilityTimeout');
             if (timeout) {
                 clearTimeout(timeout);
                 enhancerState.set('followUp.stabilityTimeout', null);
@@ -890,7 +816,7 @@
     /**
      * Normalize text by collapsing multiple consecutive newlines and trimming whitespace
      */
-    function normalizeText(text: string): string {
+    function normalizeText(text) {
         return text
             // Normalize line endings to \n
             .replace(/\r\n/g, '\n')
@@ -913,7 +839,7 @@
     /**
      * Handle toolbar action button click
      */
-    function handleToolbarAction(action: ToolbarAction, originalText: string): void {
+    function handleToolbarAction(action, originalText) {
         const currentSelection = window.getSelection();
         const currentText = currentSelection?.toString().trim();
 
@@ -928,35 +854,33 @@
         const promptText = action.prompt.replace('{text}', textToUse);
 
         setTimeout(() => {
-            const inputBox = findGeminiInputBox() as InputElement | null;
+            const inputBox = findGeminiInputBox();
             if (inputBox) {
                 // Update lastInputBox so slash commands work after toolbar action
-                lastInputBox = inputBox as HTMLElement;
+                lastInputBox = inputBox;
                 enhancerState.set('slashCommands.lastInputBox', inputBox);
 
                 const isTextInput = inputBox instanceof HTMLTextAreaElement || inputBox instanceof HTMLInputElement;
                 if (isTextInput) {
-                    const inputEl = inputBox as HTMLTextAreaElement | HTMLInputElement;
-                    if (typeof inputEl.setRangeText === 'function') {
-                        const endPos = inputEl.value.length;
-                        inputEl.setRangeText(promptText, 0, endPos, 'end');
+                    if (typeof inputBox.setRangeText === 'function') {
+                        const endPos = inputBox.value.length;
+                        inputBox.setRangeText(promptText, 0, endPos, 'end');
                     } else {
-                        inputEl.value = promptText;
-                        inputEl.setSelectionRange(promptText.length, promptText.length);
+                        inputBox.value = promptText;
+                        inputBox.setSelectionRange(promptText.length, promptText.length);
                     }
-                    inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                    inputBox.dispatchEvent(new Event('input', { bubbles: true }));
                 } else {
                     setInputText(inputBox, promptText);
                     // Keep the caret at the end before focus to avoid IME disruption.
                     setCursorPosition(inputBox, promptText.length);
                 }
 
-                const focusTarget = inputBox as HTMLElement;
-                if (typeof focusTarget.focus === 'function') {
+                if (typeof inputBox.focus === 'function') {
                     try {
-                        focusTarget.focus({ preventScroll: true });
+                        inputBox.focus({ preventScroll: true });
                     } catch {
-                        focusTarget.focus();
+                        inputBox.focus();
                     }
                 }
 
@@ -969,7 +893,7 @@
     /**
      * Position the toolbar near the selection
      */
-    function positionToolbar(toolbar: HTMLElement): void {
+    function positionToolbar(toolbar) {
         const selection = window.getSelection();
         if (!selection || selection.rangeCount === 0) return;
 
@@ -1004,8 +928,8 @@
     /**
      * Update the toolbar position based on current selection
      */
-    function updateButtonPosition(): void {
-        const toolbar = enhancerState.get<HTMLElement | null>('followUp.button');
+    function updateButtonPosition() {
+        const toolbar = enhancerState.get('followUp.button');
         if (!toolbar || !toolbar.parentNode) return;
 
         positionToolbar(toolbar);
@@ -1014,11 +938,11 @@
     /**
      * Remove the follow-up toolbar
      */
-    function removeFollowUpButton(): void {
-        const toolbar = enhancerState.get<HTMLElement | null>('followUp.button');
+    function removeFollowUpButton() {
+        const toolbar = enhancerState.get('followUp.button');
 
         if (toolbar) {
-            const stabilityTimeout = enhancerState.get<ReturnType<typeof setTimeout> | null>('followUp.stabilityTimeout');
+            const stabilityTimeout = enhancerState.get('followUp.stabilityTimeout');
             if (stabilityTimeout) {
                 clearTimeout(stabilityTimeout);
                 enhancerState.set('followUp.stabilityTimeout', null);
@@ -1031,7 +955,7 @@
             toolbar.style.transform = 'translateY(8px) scale(0.9)';
 
             setTimeout(() => {
-                const currentButton = enhancerState.get<HTMLElement | null>('followUp.button');
+                const currentButton = enhancerState.get('followUp.button');
                 if (currentButton) {
                     currentButton.remove();
                     enhancerState.set('followUp.button', null);
@@ -1052,7 +976,7 @@
     /**
      * Show the slash command autocomplete dropdown
      */
-    function showCommandAutocomplete(inputElement: HTMLElement, partial: string, slashIndex: number): void {
+    function showCommandAutocomplete(inputElement, partial, slashIndex) {
         lastInputBox = inputElement;
         enhancerState.set('slashCommands.lastInputBox', inputElement);
 
@@ -1096,7 +1020,7 @@
             const iconLetter = cmd[0]?.toUpperCase() || '•';
 
             return `
-            <div id="ge-ac-item-${index}" class="autocomplete-item ${index === 0 ? 'selected' : ''}" 
+            <div id="ge-ac-item-${index}" class="autocomplete-item ${index === 0 ? 'selected' : ''}"
                  role="option" aria-selected="${index === 0}" data-command="${cmd}">
                 <div class="ac-row">
                     <div class="ac-icon">${iconLetter}</div>
@@ -1111,22 +1035,20 @@
 
         // Add event listeners
         commandAutocomplete.querySelectorAll('.autocomplete-item').forEach((item, index) => {
-            const element = item as HTMLElement;
-
-            element.addEventListener('click', (e) => {
+            item.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                selectCommand(element.dataset.command!);
+                selectCommand(item.dataset.command);
             }, { capture: true });
 
-            element.addEventListener('mousedown', (e) => {
+            item.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                selectCommand(element.dataset.command!);
+                selectCommand(item.dataset.command);
             }, { capture: true });
 
-            element.addEventListener('mouseenter', () => {
-                const items = commandAutocomplete!.querySelectorAll('.autocomplete-item');
+            item.addEventListener('mouseenter', () => {
+                const items = commandAutocomplete.querySelectorAll('.autocomplete-item');
                 updateSelection(items, index);
             });
         });
@@ -1149,7 +1071,7 @@
     /**
      * Position the autocomplete dropdown
      */
-    function positionAutocomplete(inputElement: HTMLElement): void {
+    function positionAutocomplete(inputElement) {
         if (!commandAutocomplete) return;
 
         const style = commandAutocomplete.style;
@@ -1185,7 +1107,7 @@
     /**
      * Update selected item in autocomplete dropdown
      */
-    function updateSelection(items: NodeListOf<Element>, selectedIndex: number): void {
+    function updateSelection(items, selectedIndex) {
         items.forEach((item, index) => {
             const isSelected = index === selectedIndex;
             item.classList.toggle('selected', isSelected);
@@ -1199,7 +1121,7 @@
     /**
      * Select a slash command
      */
-    function selectCommand(commandName: string): void {
+    function selectCommand(commandName) {
         if (!lastInputBox || !slashCommands[commandName]) {
             hideCommandAutocomplete();
             return;
@@ -1217,7 +1139,7 @@
             const newText = text.substring(0, slashMatch.index) + finalPrompt + text.substring(cursorPos);
 
             setInputText(lastInputBox, newText);
-            setCursorPosition(lastInputBox, slashMatch.index! + finalPrompt.length);
+            setCursorPosition(lastInputBox, slashMatch.index + finalPrompt.length);
         }
 
         hideCommandAutocomplete();
@@ -1226,7 +1148,7 @@
     /**
      * Hide the autocomplete dropdown
      */
-    function hideCommandAutocomplete(): void {
+    function hideCommandAutocomplete() {
         if (commandAutocomplete) {
             eventCoordinator.deactivateFeature('slash-commands');
 
@@ -1247,7 +1169,7 @@
     /**
      * Scroll autocomplete item into view if needed
      */
-    function scrollIntoViewIfNeeded(element: Element | null): void {
+    function scrollIntoViewIfNeeded(element) {
         if (!element || !commandAutocomplete) return;
 
         const container = commandAutocomplete;
@@ -1266,9 +1188,9 @@
     /**
      * Handle text selection events
      */
-    function handleTextSelection(event: Event): void {
-        if (!enhancerState.get<boolean>('features.followUpEnabled') || isExcludedPath()) {
-            const existing = enhancerState.get<HTMLElement | null>('followUp.button');
+    function handleTextSelection(event) {
+        if (!enhancerState.get('features.followUpEnabled') || isExcludedPath()) {
+            const existing = enhancerState.get('followUp.button');
             if (existing) removeFollowUpButton();
             return;
         }
@@ -1279,7 +1201,7 @@
             try {
                 const selection = window.getSelection();
                 const selectedText = selection?.toString().trim() || '';
-                const toolbar = enhancerState.get<HTMLElement | null>('followUp.button');
+                const toolbar = enhancerState.get('followUp.button');
 
                 // Ignore clicks on the toolbar itself
                 if (toolbar && event.target instanceof Node && (toolbar.contains(event.target) || toolbar === event.target)) {
@@ -1311,7 +1233,7 @@
                         }
                     }
                 } else {
-                    if (toolbar && toolbar.parentNode && !enhancerState.get<boolean>('followUp.isHoveringButton')) {
+                    if (toolbar && toolbar.parentNode && !enhancerState.get('followUp.isHoveringButton')) {
                         removeFollowUpButton();
                     }
                 }
@@ -1324,10 +1246,10 @@
     /**
      * Handle mouse down events
      */
-    function handleMouseDown(event: MouseEvent): void {
-        const toolbar = enhancerState.get<HTMLElement | null>('followUp.button');
+    function handleMouseDown(event) {
+        const toolbar = enhancerState.get('followUp.button');
 
-        if (toolbar?.contains(event.target as Node)) return;
+        if (toolbar?.contains(event.target)) return;
 
         if (toolbar) {
             const buttonRect = toolbar.getBoundingClientRect();
@@ -1337,7 +1259,7 @@
             );
 
             if (distance > 100) {
-                const stabilityTimeout = enhancerState.get<ReturnType<typeof setTimeout> | null>('followUp.stabilityTimeout');
+                const stabilityTimeout = enhancerState.get('followUp.stabilityTimeout');
                 if (stabilityTimeout) {
                     clearTimeout(stabilityTimeout);
                     enhancerState.set('followUp.stabilityTimeout', null);
@@ -1351,7 +1273,7 @@
     /**
      * Handle selection change events
      */
-    function handleSelectionChange(): void {
+    function handleSelectionChange() {
         const syntheticEvent = new CustomEvent('selectionchange');
         handleTextSelection(syntheticEvent);
     }
@@ -1359,7 +1281,7 @@
     /**
      * Handle keyboard selection (Shift+arrows, etc.)
      */
-    function handleKeyboardSelection(event: KeyboardEvent): void {
+    function handleKeyboardSelection(event) {
         const selectionKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown', 'a'];
         const modifierKeys = event.shiftKey || event.ctrlKey || event.metaKey;
 
@@ -1380,8 +1302,8 @@
     /**
      * Handle scroll events to keep toolbar in sync
      */
-    function handleAnyScroll(): void {
-        const btn = enhancerState.get<HTMLElement | null>('followUp.button');
+    function handleAnyScroll() {
+        const btn = enhancerState.get('followUp.button');
         if (!btn || isRepositionScheduled) return;
 
         isRepositionScheduled = true;
@@ -1394,10 +1316,10 @@
     /**
      * Handle input changes for slash commands
      */
-    function handleInputChange(event: Event): void {
-        const target = event.target as HTMLElement;
+    function handleInputChange(event) {
+        const target = event.target;
 
-        if (!enhancerState.get<boolean>('features.slashCommandsEnabled')) {
+        if (!enhancerState.get('features.slashCommandsEnabled')) {
             if (commandAutocomplete?.style.display !== 'none') {
                 hideCommandAutocomplete();
             }
@@ -1414,7 +1336,7 @@
             const slashMatch = beforeCursor.match(/\/(\w*)$/);
 
             if (slashMatch) {
-                showCommandAutocomplete(target, slashMatch[1].toLowerCase(), slashMatch.index!);
+                showCommandAutocomplete(target, slashMatch[1].toLowerCase(), slashMatch.index);
             } else {
                 hideCommandAutocomplete();
             }
@@ -1426,7 +1348,7 @@
     /**
      * Handle keydown events
      */
-    function handleKeyDown(event: KeyboardEvent): void {
+    function handleKeyDown(event) {
         if (commandAutocomplete && commandAutocomplete.style.display !== 'none') {
             const items = commandAutocomplete.querySelectorAll('.autocomplete-item');
             let selectedIndex = Array.from(items).findIndex(item => item.classList.contains('selected'));
@@ -1454,7 +1376,7 @@
                     event.stopPropagation();
                     event.stopImmediatePropagation();
                     if (selectedIndex >= 0 && items[selectedIndex]) {
-                        selectCommand((items[selectedIndex] as HTMLElement).dataset.command!);
+                        selectCommand(items[selectedIndex].dataset.command);
                     }
                     return;
 
@@ -1470,13 +1392,12 @@
     /**
      * Handle keyup events
      */
-    function handleKeyUp(event: KeyboardEvent): void {
+    function handleKeyUp(event) {
         const target = event.target;
         if (target && isChatInputBox(target)) {
-            const inputTarget = target as InputElement;
             setTimeout(() => {
-                const text = getInputText(inputTarget);
-                const cursorPos = getCursorPosition(inputTarget);
+                const text = getInputText(target);
+                const cursorPos = getCursorPosition(target);
                 const beforeCursor = text.substring(0, cursorPos);
 
                 if (!beforeCursor.match(/\/(\w*)$/) && commandAutocomplete && commandAutocomplete.style.display !== 'none') {
@@ -1489,9 +1410,9 @@
     /**
      * Handle focus out events
      */
-    function handleFocusOut(event: FocusEvent): void {
+    function handleFocusOut(event) {
         if (commandAutocomplete && commandAutocomplete.style.display !== 'none') {
-            if (!event.relatedTarget || !commandAutocomplete.contains(event.relatedTarget as Node)) {
+            if (!event.relatedTarget || !commandAutocomplete.contains(event.relatedTarget)) {
                 setTimeout(() => {
                     if (commandAutocomplete && commandAutocomplete.style.display !== 'none') {
                         hideCommandAutocomplete();
@@ -1504,9 +1425,9 @@
     /**
      * Handle document click events
      */
-    function handleDocumentClick(event: MouseEvent): void {
+    function handleDocumentClick(event) {
         if (commandAutocomplete && commandAutocomplete.style.display !== 'none') {
-            if (commandAutocomplete.contains(event.target as Node)) return;
+            if (commandAutocomplete.contains(event.target)) return;
             if (!isChatInputBox(event.target)) {
                 hideCommandAutocomplete();
             }
@@ -1516,7 +1437,7 @@
     /**
      * Handle form submit events (placeholder)
      */
-    function handleFormSubmit(_event: Event): void {
+    function handleFormSubmit(_event) {
         // Placeholder for potential future form submit handling
     }
 
@@ -1527,22 +1448,22 @@
     /**
      * Initialize all event listeners
      */
-    function initializeEventListeners(): void {
-        const events: Array<{ type: string; handler: EventListener; options?: AddEventListenerOptions | boolean }> = [
-            { type: 'mouseup', handler: handleTextSelection as EventListener, options: { passive: true } },
-            { type: 'mousedown', handler: handleMouseDown as EventListener, options: { passive: true } },
-            { type: 'selectionchange', handler: handleSelectionChange as EventListener, options: { passive: true } },
-            { type: 'touchend', handler: handleTextSelection as EventListener, options: { passive: true } },
-            { type: 'keyup', handler: handleKeyboardSelection as EventListener, options: { passive: true } },
-            { type: 'keyup', handler: handleKeyUp as EventListener, options: { capture: true, passive: true } },
-            { type: 'scroll', handler: handleAnyScroll as EventListener, options: { capture: true, passive: true } },
-            { type: 'wheel', handler: handleAnyScroll as EventListener, options: { capture: true, passive: true } },
-            { type: 'touchmove', handler: handleAnyScroll as EventListener, options: { capture: true, passive: true } },
-            { type: 'input', handler: handleInputChange as EventListener, options: { capture: true, passive: true } },
-            { type: 'keydown', handler: handleKeyDown as EventListener, options: { capture: true, passive: false } },
-            { type: 'click', handler: handleDocumentClick as EventListener, options: { capture: true, passive: true } },
-            { type: 'submit', handler: handleFormSubmit as EventListener, options: { capture: true, passive: true } },
-            { type: 'focusout', handler: handleFocusOut as EventListener, options: { passive: true } }
+    function initializeEventListeners() {
+        const events = [
+            { type: 'mouseup', handler: handleTextSelection, options: { passive: true } },
+            { type: 'mousedown', handler: handleMouseDown, options: { passive: true } },
+            { type: 'selectionchange', handler: handleSelectionChange, options: { passive: true } },
+            { type: 'touchend', handler: handleTextSelection, options: { passive: true } },
+            { type: 'keyup', handler: handleKeyboardSelection, options: { passive: true } },
+            { type: 'keyup', handler: handleKeyUp, options: { capture: true, passive: true } },
+            { type: 'scroll', handler: handleAnyScroll, options: { capture: true, passive: true } },
+            { type: 'wheel', handler: handleAnyScroll, options: { capture: true, passive: true } },
+            { type: 'touchmove', handler: handleAnyScroll, options: { capture: true, passive: true } },
+            { type: 'input', handler: handleInputChange, options: { capture: true, passive: true } },
+            { type: 'keydown', handler: handleKeyDown, options: { capture: true, passive: false } },
+            { type: 'click', handler: handleDocumentClick, options: { capture: true, passive: true } },
+            { type: 'submit', handler: handleFormSubmit, options: { capture: true, passive: true } },
+            { type: 'focusout', handler: handleFocusOut, options: { passive: true } }
         ];
 
         events.forEach(({ type, handler, options }) => {
@@ -1553,15 +1474,15 @@
         // Viewport change handlers
         const onViewportChange = () => {
             try {
-                if (commandAutocomplete?.style.display === 'block' && enhancerState.get<HTMLElement | null>('slashCommands.lastInputBox')) {
-                    positionAutocomplete(enhancerState.get<HTMLElement>('slashCommands.lastInputBox'));
+                if (commandAutocomplete?.style.display === 'block' && enhancerState.get('slashCommands.lastInputBox')) {
+                    positionAutocomplete(enhancerState.get('slashCommands.lastInputBox'));
                 }
                 updateButtonPosition();
             } catch { /* noop */ }
         };
 
         window.addEventListener('resize', onViewportChange);
-        window.addEventListener('scroll', onViewportChange, { passive: true } as AddEventListenerOptions);
+        window.addEventListener('scroll', onViewportChange, { passive: true });
 
         enhancerState.addCleanup(() => {
             window.removeEventListener('resize', onViewportChange);
@@ -1578,7 +1499,7 @@
     /**
      * Handle messages from the popup
      */
-    browserAPI.runtime.onMessage.addListener((message: PopupMessage) => {
+    browserAPI.runtime.onMessage.addListener((message) => {
         if (message.type === 'UPDATE_WIDE_MODE') {
             applyWideMode(message.enabled, message.width);
         }
@@ -1597,10 +1518,10 @@
     /**
      * Handle storage changes
      */
-    browserAPI.storage.onChanged.addListener((changes: { [key: string]: chrome.storage.StorageChange }, namespace: string) => {
+    browserAPI.storage.onChanged.addListener((changes, namespace) => {
         if (namespace === 'sync') {
             if (changes.slashCommands) {
-                slashCommands = (changes.slashCommands.newValue as Record<string, string>) || {};
+                slashCommands = changes.slashCommands.newValue || {};
             }
 
             if (changes.followUpEnabled !== undefined) {
@@ -1626,7 +1547,7 @@
     loadSlashCommands();
 
     // Initialize wide mode
-    browserAPI.storage.sync.get(['wideMode', 'wideModeWidth'], (result: StorageData) => {
+    browserAPI.storage.sync.get(['wideMode', 'wideModeWidth'], (result) => {
         if (result.wideMode) {
             applyWideMode(true, result.wideModeWidth || DEFAULT_WIDE_MODE_WIDTH);
         }

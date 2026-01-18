@@ -9,16 +9,9 @@ Gemini Enhancer is a Chrome extension (Manifest V3) that enhances gemini.google.
 - **Slash commands**: Custom prompt shortcuts triggered by typing `/` in the input box
 - **Wide mode**: Expands conversation width
 
-## Build Commands
+## Development
 
-```bash
-cd extension
-npm install          # Install dependencies
-npm run build        # Build TypeScript to dist/, copies manifest/popup/styles
-npm run watch        # Watch mode for development
-```
-
-After building, load the extension in Chrome from `extension/dist/` via chrome://extensions/ with Developer Mode enabled.
+No build step required. Load the extension directly in Chrome from `extension/` via chrome://extensions/ with Developer Mode enabled.
 
 ## Architecture
 
@@ -26,17 +19,15 @@ After building, load the extension in Chrome from `extension/dist/` via chrome:/
 
 ```
 extension/
-├── src/
-│   ├── content.ts      # Main content script (injected into Gemini)
-│   ├── popup.ts        # Extension popup UI logic
-│   └── types/globals.d.ts  # Global TypeScript declarations
-├── styles.css          # Injected styles for toolbar/autocomplete
-├── popup.html          # Popup UI markup and embedded styles
 ├── manifest.json       # Extension manifest (Manifest V3)
-└── dist/               # Build output (loaded as extension)
+├── content.js          # Main content script (injected into Gemini)
+├── popup.js            # Extension popup UI logic
+├── popup.html          # Popup UI markup and embedded styles
+├── styles.css          # Injected styles for toolbar/autocomplete
+└── package.json        # Project metadata (no dependencies)
 ```
 
-### Content Script Architecture (content.ts)
+### Content Script Architecture (content.js)
 
 The content script uses an IIFE wrapper to prevent global scope pollution (content scripts aren't ES modules).
 
@@ -62,15 +53,18 @@ The extension uses selector arrays to handle Gemini's dynamic UI:
 
 ### Communication
 
-- **Popup → Content Script**: `chrome.tabs.sendMessage()` with `PopupMessage` union type
+- **Popup → Content Script**: `chrome.tabs.sendMessage()` with message types:
+  - `UPDATE_WIDE_MODE`
+  - `UPDATE_FOLLOW_UP`
+  - `UPDATE_SLASH_COMMANDS`
 - **Storage sync**: `chrome.storage.sync` for cross-device settings persistence
 - **Storage change listener**: Content script reacts to `storage.onChanged` events
 
 ### Cross-Browser Compatibility
 
 Uses `browserAPI` variable that falls back to Firefox's `browser` API if available:
-```typescript
-const browserAPI: typeof chrome = typeof browser !== 'undefined' ? browser : chrome;
+```javascript
+const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 ```
 
 ## Key Implementation Details
