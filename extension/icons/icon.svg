@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="googleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4285f4"/>
+      <stop offset="33%" style="stop-color:#34a853"/>
+      <stop offset="66%" style="stop-color:#fbbc05"/>
+      <stop offset="100%" style="stop-color:#ea4335"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded rectangle background -->
+  <rect x="4" y="4" width="120" height="120" rx="24" ry="24" fill="url(#googleGrad)"/>
+  <!-- Four-point star sparkle ✦ -->
+  <path d="M64 16 L72 56 L112 64 L72 72 L64 112 L56 72 L16 64 L56 56 Z" fill="white"/>
+</svg>

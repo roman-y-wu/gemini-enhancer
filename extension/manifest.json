@@ -3,6 +3,12 @@
   "name": "Gemini Enhancer",
   "version": "1.7.1",
   "description": "Ask follow-ups with native-feeling UI and robust slash commands on gemini.google.com.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "permissions": [
     "storage"
   ],
@@ -25,6 +31,10 @@
   ],
   "action": {
     "default_title": "Manage Slash Commands",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
   }
 }
