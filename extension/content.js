@@ -693,17 +693,14 @@
         }
 
         styleEl.textContent = `
-        .conversation-container,
-        .input-area-container,
-        main > div > div,
-        [role="main"] > div > div,
-        user-query,
-        .user-query-bubble-with-background {
+        /* Override any max-width constraints in main content area */
+        main *,
+        [role="main"] * {
             max-width: ${width}px !important;
         }
-        .input-area-container {
-            max-width: ${width}px !important;
-            width: 100% !important;
+        /* Exclude sidebar and small UI elements */
+        nav *, aside *, button, input, [role="button"] {
+            max-width: unset !important;
         }
     `;
     }
